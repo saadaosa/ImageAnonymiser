@@ -16,8 +16,10 @@ class AnonymiserUI():
             with gr.Row():
                 with gr.Column():
                     with gr.Row(equal_height=True):
-                        self.target = gr.Dropdown(choices=["None"], label="Choose the target", value="None")
-                        self.type = gr.Dropdown(choices=["None"], label="Blur type", value="None")
+                        with gr.Column(scale=5):
+                            self.target = gr.CheckboxGroup(choices=[], label="Choose the target")
+                        with gr.Column(scale=1):
+                            self.type = gr.Dropdown(choices=["None"], label="Blur type", value="None")
                     with gr.Row():
                         self.intensity = gr.Slider(0,1, value=self.default_intensity_ui, step=0.05, interactive=True, 
                                             label="Blur Intensity") 
@@ -32,9 +34,8 @@ class AnonymiserUI():
                             rectangular blur around the object. Mask adds a blur to the target pixels only
                             * Blur intensity: Value from 0 to 1 that allows you to control the level of blur  
                             """)
-                    # Uncomment to have a button for anonymisation
-                    # with gr.Row():
-                    #     self.anonymise_btn = gr.Button("Anonymize")
+                    with gr.Row():
+                        self.anonymise_btn = gr.Button("Anonymize")
                 with gr.Column():    
                     self.anonymise_image = gr.Image(label="Image Anonymised").style(height=300)
                 

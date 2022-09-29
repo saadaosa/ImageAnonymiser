@@ -61,13 +61,13 @@ class App():
                         pred_image = self.model.draw_predictions(image, predictions)
                         cache["predictions"] = self.model.process_predictions(predictions)
                         cache["threshold"] = threshold
-                        pred_labels = cache["predictions"]["pred_labels"] if cache["predictions"]["pred_labels"] else ["No Object Detected"]
+                        pred_labels = cache["predictions"]["pred_labels"] if cache["predictions"]["pred_labels"] else []
                         blur_type = list()
                         if cache["predictions"]["boxes"] is not None: blur_type.append("Box") 
                         if cache["predictions"]["masks"] is not None: blur_type.append("Mask")
                         if blur_type == []: blur_type.append("None") 
                         return (pred_image, gr.Group.update(visible=True), gr.Accordion.update(open=False),
-                                gr.Dropdown.update(choices=pred_labels, value=pred_labels[0]), 
+                                gr.CheckboxGroup.update(choices=pred_labels), 
                                 gr.Dropdown.update(choices=blur_type, value=blur_type[0]))
 
             self.modelui.detect_btn.click(detector, self.modelui.threshold, 
@@ -78,13 +78,13 @@ class App():
             #                             [self.modelui.detect_img, self.anonymiserui.container, self.modelui.accordion, 
             #                             self.anonymiserui.target, self.anonymiserui.type])
 
-            def anonymiser(target, blur_intensity, blur_type):
+            def anonymiser(targets, blur_intensity, blur_type):
                 image = np.copy(cache["input_img"])
-                if target != "No Object Detected":
-                    target_id = self.model.name2int[target]
+                if targets != []:
+                    target_ids = [self.model.name2int[target] for target in targets]
                     intensity = self.anonymiserui.convert_intensity(blur_intensity)
                     kernel = (intensity, intensity)
-                    boxes, mask_indices = self.model.get_class_prediction(target_id, cache["predictions"])
+                    boxes, mask_indices = self.model.get_class_prediction(target_ids, cache["predictions"])
                     if blur_type == "Box":
                         blur_boxes(image, boxes, kernel=kernel)
                     elif blur_type == "Mask":
@@ -93,19 +93,20 @@ class App():
                         pass
                 return image
 
-            # Uncomment to have a buttom for anonymisation
-            # self.anonymiserui.anonymise_btn.click(anonymiser, [self.anonymiserui.target, self.anonymiserui.intensity, 
+            self.anonymiserui.anonymise_btn.click(anonymiser, [self.anonymiserui.target, self.anonymiserui.intensity, 
+                                                self.anonymiserui.type], [self.anonymiserui.anonymise_image],
+                                                show_progress=True)
+            # Uncomment to have the change in anonymisation params trigger an auto anonymisation
+            # Need to take into account latency once model is deployed
+            # self.anonymiserui.intensity.change(anonymiser, [self.anonymiserui.target, self.anonymiserui.intensity, 
             #                                     self.anonymiserui.type], [self.anonymiserui.anonymise_image],
             #                                     show_progress=False)
-            self.anonymiserui.intensity.change(anonymiser, [self.anonymiserui.target, self.anonymiserui.intensity, 
-                                                self.anonymiserui.type], [self.anonymiserui.anonymise_image],
-                                                show_progress=False)
-            self.anonymiserui.target.change(anonymiser, [self.anonymiserui.target, self.anonymiserui.intensity, 
-                                                self.anonymiserui.type], [self.anonymiserui.anonymise_image],
-                                                show_progress=False)
-            self.anonymiserui.type.change(anonymiser, [self.anonymiserui.target, self.anonymiserui.intensity, 
-                                                self.anonymiserui.type], [self.anonymiserui.anonymise_image],
-                                                show_progress=False)
+            # self.anonymiserui.target.change(anonymiser, [self.anonymiserui.target, self.anonymiserui.intensity, 
+            #                                     self.anonymiserui.type], [self.anonymiserui.anonymise_image],
+            #                                     show_progress=False)
+            # self.anonymiserui.type.change(anonymiser, [self.anonymiserui.target, self.anonymiserui.intensity, 
+            #                                     self.anonymiserui.type], [self.anonymiserui.anonymise_image],
+            #                                     show_progress=False)
 
 def main(args):
     app = App()

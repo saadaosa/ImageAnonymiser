@@ -37,9 +37,17 @@ class Model():
         predictions_proc["boxes"] = predictions["instances"].pred_boxes.tensor.numpy().astype(int)
         predictions_proc["masks"] = predictions["instances"].pred_masks.numpy()
         return predictions_proc
-        
+    
+    # kept this from previous version when only one target was selected
     def get_class_prediction(self, target_id, predictions_proc):
         mask = np.array([True if i==target_id else False for i in predictions_proc["pred_classes"]])
+        target_boxes = predictions_proc["boxes"][mask]
+        target_pred_mask = np.sum(predictions_proc["masks"][mask], axis=0)
+        mask_indices = np.where(target_pred_mask != 0)
+        return target_boxes, mask_indices
+
+    def get_class_prediction(self, target_ids, predictions_proc):
+        mask = np.array([True if i in target_ids else False for i in predictions_proc["pred_classes"]])
         target_boxes = predictions_proc["boxes"][mask]
         target_pred_mask = np.sum(predictions_proc["masks"][mask], axis=0)
         mask_indices = np.where(target_pred_mask != 0)
