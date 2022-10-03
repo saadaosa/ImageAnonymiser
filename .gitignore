@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Files specific to ImageAnonymiser
+image_anonymiser/app_gradio/examples/
+image_anonymiser/models/artifacts/*
