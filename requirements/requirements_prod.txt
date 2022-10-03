@@ -7,3 +7,5 @@ detectron2
 opencv-python-headless
 numpy==1.21.6
 gradio==3.3.1
+facenet-pytorch==2.5.2
+easyocr==1.6.2

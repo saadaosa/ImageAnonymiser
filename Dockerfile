@@ -10,4 +10,4 @@ ENV PYTHONPATH ".:"
 
 COPY image_anonymiser/ ./image_anonymiser
 
-ENTRYPOINT ["python3", "-m", "image_anonymiser.app_gradio.app", "--port", "7861", "--server", "0.0.0.0"]
+ENTRYPOINT ["python3", "image_anonymiser/app_launcher.py", "--port", "7861", "--server", "0.0.0.0"]
