@@ -43,7 +43,7 @@ class App():
         with self.demo:
             cache = dict()
             cache["input_img"] = None
-            cache["predictions"] = None
+            cache["predictions"] = [None for _ in self.detector_backend.choices]
             cache["anonym_img"] = None
             self.title = gr.Markdown(""" ## Image Anonymiser 👻 """)
 
@@ -135,7 +135,7 @@ class App():
                     Update self.model_choice value to None
                 '''
                 output = dict()
-                cache["predictions"] = None
+                cache["predictions"] = [None for _ in self.detector_backend.choices]
                 cache["anonym_img"] = None
                 output[self.detect_img] = gr.Image.update(value = None)
                 output[self.anonym_img] = gr.Image.update(value = None)
@@ -173,8 +173,11 @@ class App():
                 output = dict()
                 if model_index is not None:
                     image = cache["input_img"]
-                    predictions = self.detector_backend.detect(image, model_index)
-                    cache["predictions"] = predictions
+                    if cache["predictions"][model_index] is None: 
+                        predictions = self.detector_backend.detect(image, model_index)
+                        cache["predictions"][model_index] = predictions
+                    else:
+                        predictions = cache["predictions"][model_index]
                     pred_image = self.detector_backend.visualise_boxes(image, predictions)
                     output[self.detect_img] = pred_image
                     output[self.anonym_container] = gr.Group.update(visible=True)
@@ -196,25 +199,26 @@ class App():
                                     self.prediction_result, self.anonym_config, self.target_type, self.anonym_class])
 
             ## New output class selected for anonymisation
-            def update_instance_ids(class_name):
+            def update_instance_ids(class_name, model_index):
                 """ Update the list of instance ids based on the class name selected
 
                 Params:
                     class_name: Selected by the user (depends on the output of the detection model)
+                    model_index: index of the model in self.model_choice
                 
                 Return:
                     Update self.anonym_instance choices. If there is only one instance, the choice will be "all"
                         otherwise "all" and the ids of the instance within the class
                 """
                 output = dict()
-                instance_ids = self.detector_backend.get_instance_ids(class_name, cache["predictions"])
+                instance_ids = self.detector_backend.get_instance_ids(class_name, cache["predictions"][model_index])
                 output[self.anonym_instance] = gr.Dropdown.update(choices=instance_ids, value=instance_ids[0])
                 return output
-            self.anonym_class.change(update_instance_ids, self.anonym_class, self.anonym_instance)
+            self.anonym_class.change(update_instance_ids, [self.anonym_class, self.model_choice], self.anonym_instance)
 
             ## Anonymisation requested
             def anonymise(anonym_type, anonym_compound, target_type, blur_intensity, anonym_color, 
-                        anonym_class, anonym_instance):
+                        anonym_class, anonym_instance, model_index):
                 ''' Anonymisation function called when the button is clicked. Performs anonymisation on the input
                     image (cached) or the previsously cached anonymised image (if the anonym_compound is True)
 
@@ -227,6 +231,7 @@ class App():
                     anonym_class: object class to be anonymised
                     anonym_instance: specific instance id of an object to be anonymised (if "all", all instances
                                     will be anonymised)
+                    model_index: index of the model in self.model_choice
                     
                 Returns:
                     Update self.anonym_img to be the anonymised image
@@ -236,8 +241,9 @@ class App():
                     input_img = cache["anonym_img"]
                 else:
                     input_img = cache["input_img"]
+                predictions = cache["predictions"][model_index]
                 target_regions = self.detector_backend.get_target_regions(anonym_class, anonym_instance, target_type, 
-                                cache["predictions"])
+                                predictions)
                 if anonym_type == "blur":
                     intensity = self.anonymiser_backend.convert_intensity(blur_intensity)
                     kernel = (intensity, intensity)
@@ -251,5 +257,5 @@ class App():
                 output[self.anonym_img] = anonym_img
                 return output
             self.anonym_btn.click(anonymise, [self.anonym_type, self.anonym_compound, self.target_type, 
-                            self.blur_intensity, self.anonym_color, self.anonym_class, self.anonym_instance], 
-                            self.anonym_img)
+                            self.blur_intensity, self.anonym_color, self.anonym_class, self.anonym_instance, 
+                            self.model_choice], self.anonym_img)
