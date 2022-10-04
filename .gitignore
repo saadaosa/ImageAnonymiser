@@ -131,3 +131,4 @@ dmypy.json
 # Files specific to ImageAnonymiser
 image_anonymiser/app_gradio/examples/
 image_anonymiser/models/artifacts/*
+requirements/requirements_dev.txt
