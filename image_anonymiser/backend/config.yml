@@ -13,6 +13,17 @@ detectors:
       post_process: True
       keep_all: True
 
+  - class: "DetectronSingleDetector"
+    name: "Person detection"
+    description: "Can identify persons in an image. Produces both bounding boxes and segmentation masks (identifies the targets at a pixel level). The model is trained on the COCO dataset"
+    url: null
+    params:
+      cfg_name: "COCO-PanopticSegmentation/panoptic_fpn_R_50_3x.yaml"
+      weights_file_name: null
+      device: "cpu"
+      threshold: 0.7
+      target_id: 0
+
   - class: "OCRDetector"
     name: "Text detection"
     cfg_name: ""
@@ -25,20 +36,11 @@ detectors:
       gpu: False
 
   - class: "DetectronDetector"
-    name: "Multi-class detection - COCO"
-    description: "Can identify multiple common object classes in an image. Use this model to detect persons. Produces both bounding boxes and segmentation masks (identifies the targets at a pixel level). The model is trained on the COCO dataset"
+    name: "Multi-class detection"
+    description: "Can identify multiple common object classes in an image. Produces both bounding boxes and segmentation masks (identifies the targets at a pixel level). The model is trained on the COCO dataset"
     url: null
     params:
       cfg_name: "COCO-PanopticSegmentation/panoptic_fpn_R_50_3x.yaml"
       weights_file_name: null
       device: "cpu"
-      threshold: 0.7
-
-  - class: "DetectronDetector"
-    name: "Multi-class detection - Cityscapes"
-    description: "Can identify several object classes in an image. Use this model with urban street scenes. Produces both bounding boxes and segmentation masks (identifies the targets at a pixel level). The model is trained on the Cityscapes dataset"
-    url: null
-    params:
-      cfg_name: "Cityscapes/mask_rcnn_R_50_FPN.yaml"
-      weights_file_name: null
       threshold: 0.7

@@ -41,10 +41,7 @@ class App():
         ''' Creates the components of the Blocks demo and adds the events flow
         '''
         with self.demo:
-            cache = dict()
-            cache["input_img"] = None
-            cache["predictions"] = [None for _ in self.detector_backend.choices]
-            cache["anonym_img"] = None
+            self.session_cache = gr.State({})
             self.title = gr.Markdown(""" ## Image Anonymiser 👻 """)
 
             # create gradio components
@@ -119,13 +116,14 @@ class App():
                                         gr.Markdown(f"{', '.join(sorted(classes))}")
             # Add Events
             ## Input Image changed
-            def input_image_changed(image):
+            def input_image_changed(image, session_cache):
                 ''' Function called when the input image is changed. It re-initialises the cache and 
                     updates some components as described below. Note: image cleared triggers a gradio 
                     change event and not a clear event so it is captured here
 
                 Params:
                     image: new input image or None if image is cleared
+                    session_cache: cache used in the user session
                 
                 Returns:
                     Update self.detect_img value to None
@@ -135,6 +133,7 @@ class App():
                     Update self.model_choice value to None
                 '''
                 output = dict()
+                cache = session_cache
                 cache["predictions"] = [None for _ in self.detector_backend.choices]
                 cache["anonym_img"] = None
                 output[self.detect_img] = gr.Image.update(value = None)
@@ -147,18 +146,21 @@ class App():
                 else:
                     cache["input_img"] = image
                     output[self.model_container] = gr.Group.update(visible=True)
+                output[self.session_cache] = cache
                 return output
-            self.input_img.change(input_image_changed, self.input_img, [self.detect_img, self.anonym_img, 
-                                            self.anonym_container, self.model_container, self.model_choice])
+            self.input_img.change(input_image_changed, [self.input_img, self.session_cache], [self.detect_img, 
+                                    self.anonym_img, self.anonym_container, self.model_container, self.model_choice, 
+                                    self.session_cache])
 
             ## New model selected
-            def detect(model_index):
+            def detect(model_index, session_cache):
                 ''' Detection function called when the model is changed. It reades the input image from 
                     the cache, calls the self.detector_backend, caches the predictions, and updates 
                     some components as described below 
 
                 Params:
                     model_index: index of the model in self.model_choice
+                    session_cache: cache used in the user session
                     
                 Returns:
                     Update self.detect_img value to visualize the predictions (if model_index not None)
@@ -172,6 +174,7 @@ class App():
                 '''
                 output = dict()
                 if model_index is not None:
+                    cache = session_cache
                     image = cache["input_img"]
                     if cache["predictions"][model_index] is None: 
                         predictions = self.detector_backend.detect(image, model_index)
@@ -191,34 +194,43 @@ class App():
                         output[self.target_type] = gr.Dropdown.update(choices=pred_types, value=pred_types[0])
                         pred_classes = self.detector_backend.get_pred_classes(predictions)
                         output[self.anonym_class] = gr.Dropdown.update(choices=pred_classes, value=pred_classes[0])
+                    output[self.session_cache] = cache
                 else:
                     output[self.detect_img] = gr.Image.update(value=None)
                     output[self.anonym_container] = gr.Group.update(visible=False)
                 return output        
-            self.model_choice.change(detect, self.model_choice, [self.detect_img, self.anonym_container,
-                                    self.prediction_result, self.anonym_config, self.target_type, self.anonym_class])
+            self.model_choice.change(detect, [self.model_choice, self.session_cache], [self.detect_img, 
+                                    self.anonym_container, self.prediction_result, self.anonym_config, self.target_type, 
+                                    self.anonym_class, self.session_cache])
 
             ## New output class selected for anonymisation
-            def update_instance_ids(class_name, model_index):
+            def update_instance_ids(class_name, model_index, session_cache):
                 """ Update the list of instance ids based on the class name selected
 
                 Params:
                     class_name: Selected by the user (depends on the output of the detection model)
                     model_index: index of the model in self.model_choice
+                    session_cache: cache used in the user session
                 
                 Return:
                     Update self.anonym_instance choices. If there is only one instance, the choice will be "all"
                         otherwise "all" and the ids of the instance within the class
+
+                Note: If we add the user labeling in the gradio app, this function should also take as input the 
+                    target_type since labeling is only available for boxes, and use it to set incl_user_boxes.
+                    Also add event listener on target_type change
                 """
                 output = dict()
+                cache = session_cache
                 instance_ids = self.detector_backend.get_instance_ids(class_name, cache["predictions"][model_index])
                 output[self.anonym_instance] = gr.Dropdown.update(choices=instance_ids, value=instance_ids[0])
                 return output
-            self.anonym_class.change(update_instance_ids, [self.anonym_class, self.model_choice], self.anonym_instance)
+            self.anonym_class.change(update_instance_ids, [self.anonym_class, self.model_choice, self.session_cache], 
+                                    [self.anonym_instance, self.session_cache])
 
             ## Anonymisation requested
             def anonymise(anonym_type, anonym_compound, target_type, blur_intensity, anonym_color, 
-                        anonym_class, anonym_instance, model_index):
+                        anonym_class, anonym_instance, model_index, session_cache):
                 ''' Anonymisation function called when the button is clicked. Performs anonymisation on the input
                     image (cached) or the previsously cached anonymised image (if the anonym_compound is True)
 
@@ -232,11 +244,13 @@ class App():
                     anonym_instance: specific instance id of an object to be anonymised (if "all", all instances
                                     will be anonymised)
                     model_index: index of the model in self.model_choice
+                    session_cache: cache used in the user session
                     
                 Returns:
                     Update self.anonym_img to be the anonymised image
                 '''
                 output = dict()
+                cache = session_cache
                 if anonym_compound and cache["anonym_img"] is not None:
                     input_img = cache["anonym_img"]
                 else:
@@ -255,7 +269,8 @@ class App():
                                                     color=color)
                 cache["anonym_img"] = anonym_img
                 output[self.anonym_img] = anonym_img
+                output[self.session_cache] = cache
                 return output
             self.anonym_btn.click(anonymise, [self.anonym_type, self.anonym_compound, self.target_type, 
                             self.blur_intensity, self.anonym_color, self.anonym_class, self.anonym_instance, 
-                            self.model_choice], self.anonym_img)
+                            self.model_choice, self.session_cache], [self.anonym_img, self.session_cache])

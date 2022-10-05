@@ -23,6 +23,7 @@ class DetectionModel(ABC):
         pass
 
     ##todo: add a mechanism to pre-load weights
+    ##todo: check pixel indexation for outputs of the detectors (correct problem with FaceNet)
 
     @abstractmethod
     def detect(image, **params):
@@ -147,5 +148,34 @@ class OCRDetector(DetectionModel):
         predictions["class_names"] = self.class_names
         predictions["instance_ids"] = list(range(len(predictions["pred_classes"])))
         predictions["text"] = [p[1] for p in pred]
+        return predictions
+
+class DetectronSingleDetector(DetectronDetector):
+    """ Single-class object detection and segmentation based on the Detectron2 library
+        Uses a multi-class model but returns the predictions only for a target class
+    """
+
+    def __init__(self, cfg_name=DETECTRON_DEFAULT, weights_file_name = None, threshold=0.7, device='cpu', target_id=0):
+        super().__init__(cfg_name=cfg_name, weights_file_name = weights_file_name, threshold=threshold, device=device)
+        self.target_id = target_id
+        self.class_names = [MetadataCatalog.get(self.dataset).thing_classes[self.target_id]]
+
+    def detect(self, image):
+        predictions = dict()
+        predictor = DefaultPredictor(self.cfg)
+        pred = predictor(image) # If no objects detected, pred will contain empty Tensors
+        pred_classes = pred["instances"].pred_classes.numpy()
+        mask = np.array([True if i == self.target_id else False for i in pred_classes]) 
+        predictions["pred_classes"] = pred_classes[mask].tolist()
+        predictions["pred_labels"] = [self.class_names[i] for i in list(set(predictions["pred_classes"]))]
+        predictions["scores"] = pred["instances"].scores.numpy()[mask].tolist()
+        predictions["boxes"] = pred["instances"].pred_boxes.tensor.numpy().astype(int)[mask].tolist()
+        if hasattr(pred["instances"], "pred_masks"):
+            predictions["masks"] = pred["instances"].pred_masks.numpy()[mask].tolist()
+        else:
+            predictions["masks"] = []
+        predictions["class_names"] = self.class_names
+        predictions["name2int"] = {self.class_names[0]:self.target_id}
+        predictions["instance_ids"] = list(range(len(predictions["pred_classes"])))
         return predictions
     
