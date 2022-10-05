@@ -8,5 +8,5 @@
 
 ### Running the app using Docker
 
-- Build the image: From the root directory, run `docker build . -t imageanonymiser`
-- To run the container: `docker run -it --rm -p [host port]:[container:port] imageanonymiser`
+- Build the image: From the root directory, run `docker build --build-arg REQ=[name of the requirements file] . -t imageanonymiser`
+- To run the container: `docker run -it --rm -p [host port]:[container:port] imageanonymiser [add any args used in app_launcher]`

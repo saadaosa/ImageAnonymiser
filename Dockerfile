@@ -3,7 +3,8 @@ FROM python:3.7-buster
 RUN set -ex && mkdir /repo
 WORKDIR /repo
 
-COPY requirements/requirements_prod.txt ./requirements.txt
+ARG REQ
+COPY requirements/$REQ ./requirements.txt
 RUN pip install --upgrade pip==22.2.2
 RUN pip install -r requirements.txt
 ENV PYTHONPATH ".:"
