@@ -8,14 +8,15 @@ import yaml
 from image_anonymiser.models.detectors import *
 
 PAR_DIR = Path(__file__).resolve().parent 
-DETECTOR_CONFIG = PAR_DIR / "config.yml"
+CONFIG_DIR = PAR_DIR / "configs"
 
 class DetectorBackend():
     """ Interface to a backend that returns predictions
     """
 
-    def __init__(self, config=DETECTOR_CONFIG):
-        with open(config, 'r') as file:
+    def __init__(self, config):
+        config_file = CONFIG_DIR / config
+        with open(config_file, 'r') as file:
             self.config = yaml.safe_load(file)
         self.detectors = list()
         self.detectors_fn = list()

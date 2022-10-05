@@ -9,7 +9,7 @@ FAVICON = PAR_DIR / "favicon.png"
 
 def main(args):
     if args.engine == "gradio":
-        app = App()
+        app = App(args.bconfig)
         app.make_ui()
         app.demo.launch(server_name = args.server, server_port= args.port, share=args.share, 
                         debug=args.debug, show_api=False, favicon_path=FAVICON)
@@ -38,5 +38,9 @@ if __name__ == "__main__":
                         default=False, 
                         type=bool, 
                         help=f"Used for gradio debug mode. Default is False")
+    parser.add_argument("--bconfig", 
+                        default="config.yml", 
+                        type=str, 
+                        help=f"Path to the backend config file")
     args = parser.parse_args()
     main(args)

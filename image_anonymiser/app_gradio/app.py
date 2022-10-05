@@ -32,10 +32,10 @@ anonymisation options will not be displayed.
 """
 
 class App():
-    def __init__(self):
+    def __init__(self, backend_config):
         self.demo = gr.Blocks(title="Image Anonymiser", css=None)
-        self.detector_backend = DetectorBackend()
-        self.anonymiser_backend = AnonymiserBackend()
+        self.detector_backend = DetectorBackend(backend_config)
+        self.anonymiser_backend = AnonymiserBackend(backend_config)
     
     def make_ui(self):
         ''' Creates the components of the Blocks demo and adds the events flow

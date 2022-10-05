@@ -77,12 +77,12 @@ class DetectronDetector(DetectionModel):
         predictions = dict()
         predictor = DefaultPredictor(self.cfg)
         pred = predictor(image) # If no objects detected, pred will contain empty Tensors
-        predictions["pred_classes"] = pred["instances"].pred_classes.numpy().tolist()
+        predictions["pred_classes"] = pred["instances"].pred_classes.cpu().numpy().tolist()
         predictions["pred_labels"] = [self.class_names[i] for i in list(set(predictions["pred_classes"]))]
-        predictions["scores"] = pred["instances"].scores.numpy().tolist()
-        predictions["boxes"] = pred["instances"].pred_boxes.tensor.numpy().astype(int).tolist()
+        predictions["scores"] = pred["instances"].scores.cpu().numpy().tolist()
+        predictions["boxes"] = pred["instances"].pred_boxes.tensor.cpu().numpy().astype(int).tolist()
         if hasattr(pred["instances"], "pred_masks"):
-            predictions["masks"] = pred["instances"].pred_masks.numpy().tolist()
+            predictions["masks"] = pred["instances"].pred_masks.cpu().numpy().tolist()
         else:
             predictions["masks"] = []
         predictions["class_names"] = self.class_names
@@ -164,14 +164,14 @@ class DetectronSingleDetector(DetectronDetector):
         predictions = dict()
         predictor = DefaultPredictor(self.cfg)
         pred = predictor(image) # If no objects detected, pred will contain empty Tensors
-        pred_classes = pred["instances"].pred_classes.numpy()
+        pred_classes = pred["instances"].pred_classes.cpu().numpy()
         mask = np.array([True if i == self.target_id else False for i in pred_classes]) 
         predictions["pred_classes"] = pred_classes[mask].tolist()
         predictions["pred_labels"] = [self.class_names[i] for i in list(set(predictions["pred_classes"]))]
-        predictions["scores"] = pred["instances"].scores.numpy()[mask].tolist()
-        predictions["boxes"] = pred["instances"].pred_boxes.tensor.numpy().astype(int)[mask].tolist()
+        predictions["scores"] = pred["instances"].scores.cpu().numpy()[mask].tolist()
+        predictions["boxes"] = pred["instances"].pred_boxes.tensor.cpu().numpy().astype(int)[mask].tolist()
         if hasattr(pred["instances"], "pred_masks"):
-            predictions["masks"] = pred["instances"].pred_masks.numpy()[mask].tolist()
+            predictions["masks"] = pred["instances"].pred_masks.cpu().numpy()[mask].tolist()
         else:
             predictions["masks"] = []
         predictions["class_names"] = self.class_names
