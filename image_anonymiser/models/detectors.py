@@ -22,9 +22,6 @@ class DetectionModel(ABC):
     def __init__(self):
         pass
 
-    ##todo: add a mechanism to pre-load weights
-    ##todo: check pixel indexation for outputs of the detectors (correct problem with FaceNet)
-
     @abstractmethod
     def detect(image, **params):
         """ Detect objects in an image and store the results in self.predictions 
@@ -64,7 +61,7 @@ class DetectronDetector(DetectionModel):
         self.cfg.MODEL.DEVICE=device
         self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = threshold
         self.cfg.merge_from_file(model_zoo.get_config_file(self.cfg_name))
-        if weights_file_name is not None:
+        if weights_file_name is not None and Path(ARTIFACTS_DIR / weights_file_name).is_file():
             self.cfg.MODEL.WEIGHTS = str(ARTIFACTS_DIR / weights_file_name)
         else:
             self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(self.cfg_name)
@@ -98,27 +95,32 @@ class FaceNETDetector(DetectionModel):
     """ Face detection model using facenet
     """
 
-    def __init__(self, margin=0, post_process=True, keep_all=True):
+    def __init__(self, min_face_size=20, thresholds=[0.6,0.7,0.7], device=None):
         super().__init__()
-        self.margin = margin
-        self.post_process = post_process
-        self.keep_all = keep_all
+        self.min_face_size = min_face_size
+        self.thresholds = thresholds
+        self.device = device
         self.class_names = ['face']
 
     def detect(self, image):
-        ##todo: check why adding the min size param (with value=5) craches
         predictions = dict()
-        image_size=image.shape[1],
-        predictor = MTCNN(image_size=image_size, margin=self.margin, post_process=self.post_process,
-                        keep_all=self.keep_all) 
+        predictor = MTCNN(keep_all=True, min_face_size=self.min_face_size, thresholds=self.thresholds, 
+                        device=self.device) 
         boxes, probs = predictor.detect(image) #If no objects detected, boxes will be None
         if boxes is None:
             boxes = np.array([])
             probs = np.array([])
+        else:
+            boxes = boxes.astype(int)
+            boxes[boxes < 0] = 0
+            boxes[:,0][boxes[:,0] >= image.shape[1]] = image.shape[1]-1
+            boxes[:,2][boxes[:,2] >= image.shape[1]] = image.shape[1]-1
+            boxes[:,1][boxes[:,1] >= image.shape[0]] = image.shape[0]-1
+            boxes[:,3][boxes[:,3] >= image.shape[0]] = image.shape[0]-1
         predictions["pred_classes"] = [0 for _ in range(len(probs))]
         predictions["pred_labels"] = ['face'] if len(predictions["pred_classes"]) > 0 else []
         predictions["scores"] = probs.tolist()
-        predictions["boxes"] = boxes.astype(int).tolist()
+        predictions["boxes"] = boxes.tolist()
         predictions["masks"] = []
         predictions["class_names"] = self.class_names
         predictions["name2int"] = {'face':0}
@@ -129,15 +131,16 @@ class OCRDetector(DetectionModel):
     """ OCR model using easy ocr
     """
 
-    def __init__(self, reader=["ch_sim","en"], gpu=False):
+    def __init__(self, lang_list=["en"], gpu=False):
         super().__init__()
-        self.reader = reader
+        self.lang_list = lang_list
         self.gpu = gpu
+        self.model_storage_directory = ARTIFACTS_DIR
         self.class_names = ['text']
 
     def detect(self, image):
         predictions = dict()
-        reader = easyocr.Reader(self.reader, gpu=self.gpu)
+        reader = easyocr.Reader(self.lang_list, gpu=self.gpu, model_storage_directory=self.model_storage_directory)
         pred = reader.readtext(image) # If no objects detected, pred be an empty list
         predictions["pred_classes"] = [0 for _ in range(len(pred))]
         predictions["pred_labels"] = ['text'] if len(predictions["pred_classes"]) > 0 else []

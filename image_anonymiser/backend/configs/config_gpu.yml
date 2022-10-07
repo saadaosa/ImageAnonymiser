@@ -9,9 +9,12 @@ detectors:
     description: "Can identify faces in an image. It produces bounding boxes around the targets identified in the input"
     url: null
     params:
-      margin: 0
-      post_process: True
-      keep_all: True
+      min_face_size: 20
+      thresholds:
+        - 0.6
+        - 0.7
+        - 0.7
+      device: null
 
   - class: "DetectronSingleDetector"
     name: "Person detection"
@@ -19,7 +22,7 @@ detectors:
     url: null
     params:
       cfg_name: "COCO-PanopticSegmentation/panoptic_fpn_R_50_3x.yaml"
-      weights_file_name: null
+      weights_file_name: "model_final_c10459.pkl"
       device: "cuda"
       threshold: 0.7
       target_id: 0
@@ -30,8 +33,7 @@ detectors:
     description: "Can identify English text in an image. Produces bounding boxes around the targets identified in the input"
     url: null
     params:
-      reader:
-        - "ch_sim"
+      lang_list: # if this is updated, need to download the corresponding model
         - "en"
       gpu: True
 
@@ -41,6 +43,6 @@ detectors:
     url: null
     params:
       cfg_name: "COCO-PanopticSegmentation/panoptic_fpn_R_50_3x.yaml"
-      weights_file_name: null
+      weights_file_name: "model_final_c10459.pkl"
       device: "cuda"
       threshold: 0.7
