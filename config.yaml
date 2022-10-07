@@ -1,0 +1,19 @@
+_BASE_: detectron/projects/DeepLab/configs/Cityscapes-SemanticSegmentation/deeplab_v3_plus_R_103_os16_mg124_poly_90k_bs16.yaml
+MODEL:
+  SEM_SEG_HEAD:
+    NUM_CLASSES: 3
+DATASETS:
+  TRAIN: ("lapa_train",)
+  TEST: ("lapa_val",)
+SOLVER:
+  MAX_ITER: 300
+  IMS_PER_BATCH: 4
+INPUT:
+  MIN_SIZE_TRAIN: (256, 512, 768, 1024)
+  MIN_SIZE_TEST: 256
+  MAX_SIZE_TRAIN: 1024
+  MAX_SIZE_TEST: 1024
+  CROP:
+    ENABLED: False
+DATALOADER:
+  NUM_WORKERS: 10
