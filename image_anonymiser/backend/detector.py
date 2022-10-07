@@ -92,7 +92,7 @@ class DetectorBackend():
         """
         result = ["all"]
         class_id = predictions["name2int"][class_name]
-        if incl_user_boxes:
+        if incl_user_boxes and "boxes_adj" in predictions:
             pred_classes = predictions["pred_classes_adj"]
             i_ids = predictions["instance_ids_adj"]
         else:
@@ -118,7 +118,7 @@ class DetectorBackend():
         """
         class_id = predictions["name2int"][class_name]
         if target_type == "box":
-            if incl_user_boxes:
+            if incl_user_boxes and "boxes_adj" in predictions:
                 boxes = predictions["boxes_adj"]
                 pred_classes = predictions["pred_classes_adj"]
             else:
@@ -156,7 +156,7 @@ class DetectorBackend():
         """ Function used to visualise boxes detected   
         """
         output = np.copy(image)
-        if incl_user_boxes:
+        if incl_user_boxes and "boxes_adj" in predictions:
             boxes = predictions["boxes_adj"]
             pred_classes = predictions["pred_classes_adj"]
             instance_ids = predictions["instance_ids_adj"]
