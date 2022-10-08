@@ -1,13 +1,16 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-
+import torch
 import easyocr
+import pickle
+import cv2
 import numpy as np
 from detectron2 import model_zoo
 from detectron2.config import get_cfg
 from detectron2.data import MetadataCatalog
 from detectron2.engine import DefaultPredictor
 from detectron2.utils.visualizer import Visualizer
+import detectron2.projects.deeplab
 from facenet_pytorch import MTCNN
 
 DETECTRON_DEFAULT = "COCO-PanopticSegmentation/panoptic_fpn_R_50_3x.yaml"
@@ -123,6 +126,59 @@ class FaceNETDetector(DetectionModel):
         predictions["name2int"] = {'face':0}
         predictions["instance_ids"] = list(range(len(predictions["pred_classes"])))
         return predictions
+
+
+class FaceDetector(DetectionModel):
+    """Face Detector that performs face detection with facenet and face segmentation
+    with deeplab
+    """
+    def __init__(self, margin=0, post_process=True, keep_all=True, expansion=20, deeplab_model=""):
+        """Initialises facenet mtcnn input params and creates the deeplab default predictor
+        """
+        self.margin = margin
+        self.post_process = post_process
+        self.keep_all = keep_all
+        self.class_names = ['face']
+
+        self.deeplab_cfg = pickle.load(open(str(ARTIFACTS_DIR/(deeplab_model+"_cfg.pkl")), "rb"))
+        self.deeplab_cfg.defrost()
+        self.deeplab_cfg.MODEL.WEIGHTS = str(ARTIFACTS_DIR/(deeplab_model+".pth"))
+        self.deeplab = DefaultPredictor(self.deeplab_cfg)
+        self.expansion  = expansion
+        
+    def detect(self, image):
+        """Detects bounding boxes with facenet and does segmentation with deeplab
+        """
+        facenet = FaceNETDetector(self.margin, self.post_process, self.keep_all)
+        predictions = facenet.detect(image)
+        boxes = predictions["boxes"]
+        refined_boxes = []
+        masks = []
+        
+        for box in boxes:
+            x1,y1,x2,y2 = box
+            exp_x1 = x1 - self.expansion
+            exp_y1 = y1 - self.expansion
+            exp_x2 = x2 + self.expansion
+            exp_y2 = y2 + self.expansion
+            image_patch = image.copy()[exp_y1:exp_y2+1, exp_x1:exp_x2+1]
+            sem_seg = self.deeplab(image_patch)["sem_seg"]
+            sem_seg = torch.max(sem_seg, dim=0)[1].cpu().numpy()
+            skin_pixels = ((sem_seg==1)*255).astype('uint8')
+            skin_pixels = cv2.erode(skin_pixels, np.ones((5,5), np.uint8), iterations=1)
+            mask = np.zeros_like(image)[:,:,0]
+            mask[exp_y1:exp_y2+1, exp_x1:exp_x2+1] = skin_pixels
+            ys, xs = mask.nonzero()
+            min_y, min_x = np.min(ys), np.min(xs)
+            max_y, max_x = np.max(ys), np.max(xs)
+            refined_boxes += [[min_x,min_y,max_x,max_y]]
+            masks += [mask]
+            
+        predictions["boxes"] = refined_boxes
+        predictions["masks"] = masks
+        
+        return predictions
+
 
 class OCRDetector(DetectionModel):
     """ OCR model using easy ocr
