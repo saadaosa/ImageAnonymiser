@@ -1,12 +1,15 @@
 ## ImageAnonymiser 👻
 
-### Running the app locally
+**This branch is specifically for training the deeplab segmentation model in detectron2 on the LaPa dataset and should not be merged into main branch**
 
-- Clone the repo
-- Set your PYTHONPATH environment variable to be the root of the repo
-- From the root of the repo, run `image_anonymiser/app_launcher.py` (modify any args as described in `app_launcher.py`)
 
-### Running the app using Docker
+### Preparing data
+* Download the LaPa dataset from https://github.com/JDAI-CV/lapa-dataset 
+* Update `config.py` to use valid paths to the dataset
+* Run the `lapa_data_prep.py` script; `python lapa_data_prep.py --split all --save`
 
-- Build the image: From the root directory, run `docker build . -t imageanonymiser`
-- To run the container: `docker run -it --rm -p [host port]:[container:port] imageanonymiser`
+### Training
+* First run the script `train_setup.sh`; `source train_setup.sh`
+* Update the config in `deeplab_config.yaml` if desired; possible parameters to adjust are `MAX_ITER` and `IMS_PER_BATCH`
+* Run the script `train_face_seg.py` to train; `python train_face_seg.py --config-file deeplab_config.yaml --num-gpus 2`
+* trained model is uploaded to weights and biases
