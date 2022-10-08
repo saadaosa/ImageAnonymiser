@@ -1,6 +1,8 @@
 import wandb
+import pickle
 from image_anonymiser.utils import register_lapa_dataset
-from detectron.projects.DeepLab.train_net import default_argument_parser, launch, main
+from detectron2.data import DatasetCatalog
+from detectron.projects.DeepLab.train_net import default_argument_parser, launch, main, setup
 
 LAPA_DATA_FILE_NAME_FORMAT =  "/home/team_003/Data/LaPa/json/{}.json"
 
@@ -15,6 +17,8 @@ if __name__ == "__main__":
         sync_tensorboard=True,
     )
     print("Command Line Args:", args)
+    assert len(DatasetCatalog.get("lapa_train")) == 18168
+    cfg = setup(args)
     launch(
         main,
         args.num_gpus,
@@ -23,6 +27,14 @@ if __name__ == "__main__":
         dist_url=args.dist_url,
         args=(args,),
     )
+    # log model to wandb
+    pickle.dump(cfg, open(cfg.OUTPUT_DIR+"/model_final_cfg.pkl","wb"))
+    artifact_model = wandb.Artifact("model_final.pth", "model")
+    artifact_cfg = wandb.Artifact("model_final_cfg.pkl", "model-config")
+    artifact_cfg.add_file(cfg.OUTPUT_DIR+"/model_final_cfg.pkl")
+    artifact_model.add_file(cfg.OUTPUT_DIR+"/model_final.pth")
+    artifact_cfg.save()
+    artifact_model.save()
     wandb.finish()
 
 
