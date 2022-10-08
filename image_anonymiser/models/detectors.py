@@ -17,6 +17,7 @@ DETECTRON_DEFAULT = "COCO-PanopticSegmentation/panoptic_fpn_R_50_3x.yaml"
 PAR_DIR = Path(__file__).resolve().parent
 ARTIFACTS_DIR = PAR_DIR / "artifacts"
 
+
 class DetectionModel(ABC):
     """ Abstract class for a detection model 
         Any new model added should implement the abstract methods and return the output in a unified format
@@ -139,10 +140,26 @@ class FaceDetector(DetectionModel):
         self.post_process = post_process
         self.keep_all = keep_all
         self.class_names = ['face']
+        
+        if deeplab_model:
+            deeplab_cfg_file = ARTIFACTS_DIR/(deeplab_model+"_cfg.pkl")
+            deeplab_model_file = ARTIFACTS_DIR/(deeplab_model+".pth")
+            if not deeplab_cfg_file.exists() or deeplab_model_file.exists():
+                import wandb
+                api = wandb.Api()
+                artifact = api.artifact(f"fsdl_2022/face-seg/{deeplab_model}.pth:latest").download()
+                deeplab_model_file = artifact+f"/{deeplab_model}.pth"
+                artifact = api.artifact(f"fsdl_2022/face-seg/{deeplab_model}_cfg.pkl:latest").download()
+                deeplab_cfg_file = artifact+f"/{deeplab_model}_cfg.pkl"
+            else:
+                deeplab_cfg_file = str(deeplab_cfg_file)
+                deeplab_model_file = str(deeplab_model_file)
+        else:
+            raise Exception("deeplab_model was not supplied for the face detector, Please add this to the backend config.yml")
 
-        self.deeplab_cfg = pickle.load(open(str(ARTIFACTS_DIR/(deeplab_model+"_cfg.pkl")), "rb"))
+        self.deeplab_cfg = pickle.load(open(deeplab_cfg_file, "rb"))
         self.deeplab_cfg.defrost()
-        self.deeplab_cfg.MODEL.WEIGHTS = str(ARTIFACTS_DIR/(deeplab_model+".pth"))
+        self.deeplab_cfg.MODEL.WEIGHTS = deeplab_model_file
         self.deeplab = DefaultPredictor(self.deeplab_cfg)
         self.expansion  = expansion
         

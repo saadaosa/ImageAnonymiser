@@ -45,3 +45,7 @@ detectors:
       cfg_name: "Cityscapes/mask_rcnn_R_50_FPN.yaml"
       weights_file_name: null
       threshold: 0.7
+
+wandb:
+  entity: fsdl_2022
+  project: face-seg
