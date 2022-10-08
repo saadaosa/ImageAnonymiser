@@ -46,3 +46,7 @@ detectors:
       weights_file_name: "model_final_c10459.pkl"
       device: "cpu"
       threshold: 0.7
+
+file_io:
+  path: "flagged_images"
+  logdir: "logs"

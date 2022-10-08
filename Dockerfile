@@ -13,4 +13,5 @@ RUN pip install --upgrade pip==22.2.2
 RUN pip install -r requirements.txt
 ENV PYTHONPATH ".:"
 
-ENTRYPOINT ["python3", "image_anonymiser/app_launcher.py", "--port", "7861", "--server", "0.0.0.0"]
+
+ENTRYPOINT ["python3", "-m", "streamlit", "run", "image_anonymiser/app_streamlit/main.py"]
