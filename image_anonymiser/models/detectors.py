@@ -147,7 +147,7 @@ class FaceDetector(DetectionModel):
         if deeplab_model:
             deeplab_cfg_file = ARTIFACTS_DIR/(deeplab_model+"_cfg.pkl")
             deeplab_model_file = ARTIFACTS_DIR/(deeplab_model+".pth")
-            if not deeplab_cfg_file.exists() or deeplab_model_file.exists():
+            if not deeplab_cfg_file.exists() or not deeplab_model_file.exists():
                 import wandb
                 api = wandb.Api()
                 artifact = api.artifact(f"fsdl_2022/face-seg/{deeplab_model}.pth:latest").download()
