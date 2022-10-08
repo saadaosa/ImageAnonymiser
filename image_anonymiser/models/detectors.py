@@ -171,13 +171,14 @@ class FaceDetector(DetectionModel):
         boxes = predictions["boxes"]
         refined_boxes = []
         masks = []
+        h, w = image.shape[0], image.shape[1]
         
         for box in boxes:
             x1,y1,x2,y2 = box
-            exp_x1 = x1 - self.expansion
-            exp_y1 = y1 - self.expansion
-            exp_x2 = x2 + self.expansion
-            exp_y2 = y2 + self.expansion
+            exp_x1 = max(0, x1 - self.expansion)
+            exp_y1 = max(0, y1 - self.expansion)
+            exp_x2 = min(w-1, x2 + self.expansion)
+            exp_y2 = min(h-1, y2 + self.expansion)
             image_patch = image.copy()[exp_y1:exp_y2+1, exp_x1:exp_x2+1]
             sem_seg = self.deeplab(image_patch)["sem_seg"]
             sem_seg = torch.max(sem_seg, dim=0)[1].cpu().numpy()
