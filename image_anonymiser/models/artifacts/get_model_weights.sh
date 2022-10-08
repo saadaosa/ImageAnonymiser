@@ -14,3 +14,5 @@ unzip -d "$DIR_PATH"/. "$DIR_PATH"/"$TMPFILE"
 wget -q -O "$DIR_PATH"/"$TMPFILE" "$OCR_RECOGNISER_URL"
 unzip -d "$DIR_PATH"/. "$DIR_PATH"/"$TMPFILE"
 rm "$DIR_PATH"/"$TMPFILE"
+wandb artifact get face-seg/model_0044999.pth:latest --root $DIR_PATH
+wandb artifact get face-seg/model_0044999_cfg.pkl:latest --root $DIR_PATH
