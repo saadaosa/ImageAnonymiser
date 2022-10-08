@@ -4,14 +4,17 @@ anonyniser:
   min_blur_intensity: 1
 
 detectors:
-  - class: "FaceNETDetector"
-    name: "Face detection"
-    description: "Can identify faces in an image. It produces bounding boxes around the targets identified in the input"
+  - class: "FaceDetector"
+    name: "Face detection and segmentation"
+    description: "Can identify faces in an image. It produces bounding boxes and segmentaton masks around the targets identified in the input."
     url: null
     params:
       margin: 0
       post_process: True
       keep_all: True
+      expansion: 20
+      deeplab_model: "model_0044999"
+
 
   - class: "OCRDetector"
     name: "Text detection"
