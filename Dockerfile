@@ -5,10 +5,13 @@ WORKDIR /repo
 
 ARG REQ
 COPY requirements/$REQ ./requirements.txt
+COPY image_anonymiser/ ./image_anonymiser
+RUN chmod +x image_anonymiser/models/artifacts/get_model_weights.sh
+RUN image_anonymiser/models/artifacts/get_model_weights.sh
+
 RUN pip install --upgrade pip==22.2.2
 RUN pip install -r requirements.txt
 ENV PYTHONPATH ".:"
 
-COPY image_anonymiser/ ./image_anonymiser
 
-ENTRYPOINT ["python3", "-m", "streamlit", "image_anonymiser/app_streamlit/main.py"]
+ENTRYPOINT ["python3", "-m", "streamlit", "run", "image_anonymiser/app_streamlit/main.py"]

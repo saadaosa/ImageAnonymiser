@@ -49,3 +49,4 @@ detectors:
 
 file_io:
   path: "flagged_images"
+  logdir: "logs"
