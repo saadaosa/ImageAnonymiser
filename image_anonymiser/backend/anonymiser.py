@@ -5,24 +5,25 @@ import numpy as np
 import yaml
 
 PAR_DIR = Path(__file__).resolve().parent 
-ANONYMISER_CONFIG = PAR_DIR / "config.yml"
+CONFIG_DIR = PAR_DIR / "configs"
 
 class AnonymiserBackend():
     """ Interface to a backend that returns an anonymised image
     """
 
-    def __init__(self, config=ANONYMISER_CONFIG):
-        with open(config, 'r') as file:
+    def __init__(self, config):
+        config_file = CONFIG_DIR / config
+        with open(config_file, 'r') as file:
             self.config = yaml.safe_load(file)
-        url = self.config["anonyniser"]["url"]
+        url = self.config["anonymiser"]["url"]
         if url is None: # use local backend
             anonymiser = Anonymiser()
             self.anonymise = anonymiser.anonymise
         else: #use backend accessible via url
             self.url = url
             self.anonymise = self._anonymise_from_endpoint
-        self.max_blur_intensity = self.config["anonyniser"]["max_blur_intensity"]
-        self.min_blur_intensity = self.config["anonyniser"]["min_blur_intensity"]
+        self.max_blur_intensity = self.config["anonymiser"]["max_blur_intensity"]
+        self.min_blur_intensity = self.config["anonymiser"]["min_blur_intensity"]
 
     def _anonymise_from_endpoint(self, image, targets, anonym_type="blur", blur_kernel=(7,7), color=[255,255,0]):
         """ Runs anonymisation via url

@@ -1,0 +1,50 @@
+anonymiser:
+  url: null
+  max_blur_intensity: 57
+  min_blur_intensity: 1
+
+detectors:
+  - class: "FaceDetector"
+    name: "Face detection and segmentation"
+    description: "Can identify faces in an image. It produces bounding boxes and segmentaton masks around the targets identified in the input."
+    url: null
+    params:
+      min_face_size: 20
+      thresholds:
+        - 0.6
+        - 0.7
+        - 0.7
+      device: "cuda"
+      expansion: 20
+      deeplab_model: "model_0044999"
+
+  - class: "DetectronSingleDetector"
+    name: "Person detection"
+    description: "Can identify persons in an image. Produces both bounding boxes and segmentation masks (identifies the targets at a pixel level). The model is trained on the COCO dataset"
+    url: null
+    params:
+      cfg_name: "COCO-PanopticSegmentation/panoptic_fpn_R_50_3x.yaml"
+      weights_file_name: "model_final_c10459.pkl"
+      device: "cuda"
+      threshold: 0.7
+      target_id: 0
+
+  - class: "OCRDetector"
+    name: "Text detection"
+    cfg_name: ""
+    description: "Can identify English text in an image. Produces bounding boxes around the targets identified in the input"
+    url: null
+    params:
+      lang_list: # if this is updated, need to download the corresponding model
+        - "en"
+      gpu: True
+
+  - class: "DetectronDetector"
+    name: "Multi-class detection"
+    description: "Can identify multiple common object classes in an image. Produces both bounding boxes and segmentation masks (identifies the targets at a pixel level). The model is trained on the COCO dataset"
+    url: null
+    params:
+      cfg_name: "COCO-PanopticSegmentation/panoptic_fpn_R_50_3x.yaml"
+      weights_file_name: "model_final_c10459.pkl"
+      device: "cuda"
+      threshold: 0.7

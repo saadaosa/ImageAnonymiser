@@ -8,14 +8,15 @@ import yaml
 from image_anonymiser.models.detectors import *
 
 PAR_DIR = Path(__file__).resolve().parent 
-DETECTOR_CONFIG = PAR_DIR / "config.yml"
+CONFIG_DIR = PAR_DIR / "configs"
 
 class DetectorBackend():
     """ Interface to a backend that returns predictions
     """
 
-    def __init__(self, config=DETECTOR_CONFIG):
-        with open(config, 'r') as file:
+    def __init__(self, config):
+        config_file = CONFIG_DIR / config
+        with open(config_file, 'r') as file:
             self.config = yaml.safe_load(file)
         self.detectors = list()
         self.detectors_fn = list()
@@ -78,24 +79,31 @@ class DetectorBackend():
         """
         return predictions["pred_labels"]
 
-    def get_instance_ids(self, class_name, predictions):
+    def get_instance_ids(self, class_name, predictions, incl_user_boxes=False):
         """ Returns the instances ids of for a given class
 
         Params:
             class_name: str, name of the class
             predictions: dict, as described in DetectionModel.detect
+            incl_user_boxes, bool (default False)
         
         Returns:
             result: list, that contains "all" (to represent all ids) and the instance ids
         """
         result = ["all"]
         class_id = predictions["name2int"][class_name]
-        mask = [True if i == class_id else False for i in predictions["pred_classes"]]
-        instance_ids = list(compress(predictions["instance_ids"],mask))
+        if incl_user_boxes and "boxes_adj" in predictions:
+            pred_classes = predictions["pred_classes_adj"]
+            i_ids = predictions["instance_ids_adj"]
+        else:
+            pred_classes = predictions["pred_classes"]
+            i_ids = predictions["instance_ids"]
+        mask = [True if i == class_id else False for i in pred_classes]
+        instance_ids = list(compress(i_ids,mask))
         if len(instance_ids) > 1: result.extend(instance_ids)
         return result
 
-    def get_target_regions(self, class_name, instance_id, target_type, predictions):
+    def get_target_regions(self, class_name, instance_id, target_type, predictions, incl_user_boxes=False):
         """ Returns the target regions in the image 
         
         Params:
@@ -103,18 +111,26 @@ class DetectorBackend():
             instance_id: str, "all" or the id of the instance within the class
             target_type: str, "box" or "mask"
             predictions: dict, as described in DetectionModel.detect
+            incl_user_boxes, bool (default False)
 
         Returns:
             result: numpy array, indices of the target pixels in the image
         """
         class_id = predictions["name2int"][class_name]
-        mask = np.array([True if i == class_id else False for i in predictions["pred_classes"]])
         if target_type == "box":
-            boxes = np.array(predictions["boxes"])[mask]
+            if incl_user_boxes and "boxes_adj" in predictions:
+                boxes = predictions["boxes_adj"]
+                pred_classes = predictions["pred_classes_adj"]
+            else:
+                boxes = predictions["boxes"]
+                pred_classes = predictions["pred_classes"] 
+            mask = np.array([True if i == class_id else False for i in pred_classes])
+            boxes = np.array(boxes)[mask]
             if instance_id != "all":
                 boxes = np.array([boxes[int(instance_id)]])
             result = self._get_indices_from_boxes(boxes)
         elif target_type == "mask":
+            mask = np.array([True if i == class_id else False for i in predictions["pred_classes"]])
             seg_masks = np.array(predictions["masks"])[mask]
             if instance_id != "all":
                 seg_masks = np.array([seg_masks[int(instance_id)]])
@@ -136,17 +152,24 @@ class DetectorBackend():
         box_indices_x = [t[1] for t in tmp]
         return (np.array(box_indices_y), np.array(box_indices_x))
 
-    def visualise_boxes(self, image, predictions):
+    def visualise_boxes(self, image, predictions, incl_user_boxes = False):
         """ Function used to visualise boxes detected   
         """
         output = np.copy(image)
-        boxes = predictions["boxes"]
+        if incl_user_boxes and "boxes_adj" in predictions:
+            boxes = predictions["boxes_adj"]
+            pred_classes = predictions["pred_classes_adj"]
+            instance_ids = predictions["instance_ids_adj"]
+        else:
+            boxes = predictions["boxes"]
+            pred_classes = predictions["pred_classes"]
+            instance_ids = predictions["instance_ids"]
         color_map = {predictions["name2int"][name]:(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) 
                             for name in predictions["pred_labels"]} 
-        colors = [color_map[id] for id in predictions["pred_classes"]]
+        colors = [color_map[id] for id in pred_classes]
         labels = list()
         multi_class = len(predictions["pred_labels"]) > 1
-        for c_id,i_id in zip(predictions["pred_classes"], predictions["instance_ids"]):
+        for c_id,i_id in zip(pred_classes, instance_ids):
             if multi_class:
                 labels.append(f'{predictions["class_names"][c_id]}_{i_id}')
             else:
@@ -156,6 +179,42 @@ class DetectorBackend():
             cv2.rectangle(output, (x1, y1), (x2, y2), color, 2)
             cv2.putText(output, label, (x1,y1), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, 1)
         return output
+
+    def add_labeled_box(self, box, label, predictions):
+        """ Adds a user defined box to the predictions dictionary
+
+        Params:
+            box: list, box coordinates [x1, y1, x2, y2]
+            label: str, class name that the box belongs to (should already be in predictions["class_names"])
+            predictions: dict, as described in DetectionModel.detect
+
+        Returns:
+            predictions: dict, this is the input dictionary with additional key/value items:
+                "user_boxes": The labels provided by the user
+                "pred_classes_Adj": Ids of the classes detected including the ones added by the user
+                "scores_adj: The original scores including 1 (100% certainty) for each user label
+                "boxes_adj": The original boxes including the ones added by the user
+                "instance_ids_adj": The original instance ids including the ones of the new user objects  
+        """
+        if label in predictions["class_names"]:
+            label_id = predictions["name2int"][label]
+            if "user_boxes" in predictions:
+                predictions["user_boxes"].append(box)
+            else:
+                predictions["user_boxes"] = [box]
+                predictions["pred_classes_adj"] = predictions["pred_classes"].copy()
+                predictions["scores_adj"] = predictions["scores"].copy() 
+                predictions["boxes_adj"] = predictions["boxes"].copy()
+                predictions["instance_ids_adj"] = predictions["instance_ids"].copy()
+            predictions["pred_classes_adj"].append(label_id)
+            predictions["scores_adj"].append(1)
+            predictions["boxes_adj"].append(box)
+            if len(predictions["class_names"]) > 1:
+                new_id = sum(1 if label_id == c else 0 for c in predictions["pred_classes"])
+            else:
+                new_id = len(predictions["instance_ids"])
+            predictions["instance_ids_adj"].append(new_id)
+        return predictions
 
 class RemoteDetector():
     """ Class used to run a detection via url
