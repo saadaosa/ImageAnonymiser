@@ -40,6 +40,8 @@ class Detection:
             predictions = None
 
         self._file_io.store_image_with_predictions(image, predictions)
+        with st.columns(3)[0]:
+            st.success("**Thank you <3**")
 
     def _on_add_button(self, box: typing.Dict, label: str) -> None:
         """ Add a Custom Bounding Box on Button Press event
@@ -129,7 +131,13 @@ class Detection:
         clear_anon_image()
 
         image = st.session_state["image"]
-        st.session_state["predictions"] = self._detector.detect(image, model_choice)
+        predictions = self._detector.detect(image, model_choice)
+
+        if len(predictions["boxes"]) == 0:
+            st.warning("No objects detected. Please try again.")
+            return
+
+        st.session_state["predictions"] = predictions
 
         img_to_vis = st.session_state.get("image_keep", st.session_state["image"])
         st.session_state["image_boxes"] = self._detector.visualise_boxes(img_to_vis, st.session_state["predictions"], True)

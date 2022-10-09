@@ -5,15 +5,18 @@ import numpy as np
 import streamlit as st
 
 from image_anonymiser.app_streamlit.components.blurring import Blurring
+from image_anonymiser.app_streamlit.components.constants import CONFIG
 from image_anonymiser.app_streamlit.components.detection import Detection
 from image_anonymiser.app_streamlit.components.utils import clear_anon_image, clear_predictions
 from image_anonymiser.backend.anonymiser import AnonymiserBackend
 from image_anonymiser.backend.detector import DetectorBackend
 from image_anonymiser.backend.file_io import FileIO
 
-CONFIG = "config.yml"
-
-st.set_page_config(layout="wide")
+st.set_page_config(
+    layout="wide",
+    page_title="Image Anonymiser",
+    page_icon="👻"
+)
 
 
 class App():
@@ -25,9 +28,21 @@ class App():
     """
 
     def __init__(self):
-        self._detector = DetectorBackend(CONFIG)
-        self._anonymiser = AnonymiserBackend(CONFIG)
-        self._file_io = FileIO(CONFIG)
+        self._detector = self._get_detector()
+        self._anonymiser = self._get_anonymiser()
+        self._file_io = self._get_file_io()
+
+    @st.cache
+    def _get_anonymiser(self) -> AnonymiserBackend:
+        return AnonymiserBackend(CONFIG)
+
+    @st.cache
+    def _get_detector(self) -> DetectorBackend:
+        return DetectorBackend(CONFIG)
+
+    @st.cache
+    def _get_file_io(self) -> FileIO:
+        return FileIO(CONFIG)
 
     def _on_reupload(self) -> None:
         """ Reupload Image event
@@ -65,7 +80,7 @@ class App():
         """
 
         # Image Uploader
-        st.markdown(" ## Image Anonymiser 👻 ")
+        st.markdown(" ## 👻 Image Anonymiser")
         self._image_uploader()
 
         k = st.session_state.keys()

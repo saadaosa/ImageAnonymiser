@@ -48,5 +48,6 @@ detectors:
       threshold: 0.7
 
 file_io:
-  path: "flagged_images"
+  flagged_path: "flagged_images"
+  feedback_path: "feedback"
   logdir: "logs"
