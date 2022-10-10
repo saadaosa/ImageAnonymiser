@@ -168,7 +168,23 @@ class FaceDetector(DetectionModel):
             self.deeplab_cfg.MODEL.SEM_SEG_HEAD.NORM = "BN"
         self.deeplab_cfg.MODEL.DEVICE = device
         self.deeplab_cfg.MODEL.WEIGHTS = deeplab_model_file
-        self.deeplab = DefaultPredictor(self.deeplab_cfg)
+        
+        # subclass the default predictor to enable batched inferrence
+        class DeepLabPredictor(DefaultPredictor):
+            def __call__(self, images):
+                with torch.no_grad():
+                    inputs = []
+                    for image in images:
+                        if self.input_format == "RGB":
+                            image = image[:, :, ::-1]
+                        height, width = image.shape[:2]
+                        image = self.aug.get_transform(image).apply_image(image)
+                        image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1))
+                        inputs += [{"image": image, "height": height, "width": width}]
+                    predictions = self.model(inputs)
+                    return predictions 
+
+        self.deeplab = DeepLabPredictor(self.deeplab_cfg)
         self.expansion  = expansion
         
     def detect(self, image):
@@ -179,8 +195,11 @@ class FaceDetector(DetectionModel):
         boxes = predictions["boxes"]
         refined_boxes = []
         masks = []
-        h, w = image.shape[0], image.shape[1]
-        
+        h, w = image.shape[:2]
+        image_patches = []
+        image_patch_sizes = []
+        exp_boxes = []
+        max_w, max_h = 0, 0
         for box in boxes:
             x1,y1,x2,y2 = box
             exp_x1 = max(0, x1 - self.expansion)
@@ -188,11 +207,26 @@ class FaceDetector(DetectionModel):
             exp_x2 = min(w, x2 + self.expansion)
             exp_y2 = min(h, y2 + self.expansion)
             image_patch = image.copy()[exp_y1:exp_y2+1, exp_x1:exp_x2+1]
-            sem_seg = self.deeplab(image_patch)["sem_seg"]
+            patch_h, patch_w = image_patch.shape[:2]
+            max_w, max_h = max(max_w, patch_w), max(max_h, patch_h)
+            image_patches += [image_patch]
+            image_patch_sizes += [(patch_w, patch_h)]
+            exp_boxes += [(exp_x1, exp_y1, exp_x2, exp_y2)]
+            
+        # resize_image patch to max size
+        for i,image_patch in enumerate(image_patches):
+            image_patches[i] = cv2.resize(image_patch, (max_w, max_h))
+
+        results = self.deeplab(image_patches)
+        
+        for res, size, exp_box in zip(results, image_patch_sizes, exp_boxes):
+            sem_seg = res["sem_seg"]
             sem_seg = torch.max(sem_seg, dim=0)[1].cpu().numpy()
             skin_pixels = ((sem_seg==1)*255).astype('uint8')
             skin_pixels = cv2.erode(skin_pixels, np.ones((5,5), np.uint8), iterations=1)
+            skin_pixels = cv2.resize(skin_pixels, size)
             mask = np.zeros_like(image)[:,:,0]
+            exp_x1, exp_y1, exp_x2, exp_y2 = exp_box
             mask[exp_y1:exp_y2+1, exp_x1:exp_x2+1] = skin_pixels
             ys, xs = mask.nonzero()
             min_y, min_x = np.min(ys), np.min(xs)
