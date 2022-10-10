@@ -16,7 +16,7 @@ detectors:
         - 0.7
       device: "cuda"
       expansion: 20
-      deeplab_model: "model_0044999"
+      deeplab_model: "model_final"
 
   - class: "DetectronSingleDetector"
     name: "Person detection"

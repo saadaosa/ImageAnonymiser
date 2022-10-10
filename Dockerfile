@@ -5,12 +5,8 @@ WORKDIR /repo
 
 ARG REQ
 
-# W&B
-ARG WANDB_API_KEY
-ENV WANDB_API_KEY=$WANDB_API_KEY
-ENV WANDB_ENTITY=fsdl_2022
-## wandb must be installed before getting model weights
-RUN pip install wandb 
+# google drive downloader for weights in gdrive
+RUN pip install gdown 
 
 COPY requirements/$REQ ./requirements.txt
 COPY image_anonymiser/ ./image_anonymiser
