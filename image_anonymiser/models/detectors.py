@@ -168,7 +168,7 @@ class FaceDetector(DetectionModel):
             self.deeplab_cfg.MODEL.SEM_SEG_HEAD.NORM = "BN"
         self.deeplab_cfg.MODEL.DEVICE = device
         self.deeplab_cfg.MODEL.WEIGHTS = deeplab_model_file
-        
+
         # subclass the default predictor to enable batched inferrence
         class DeepLabPredictor(DefaultPredictor):
             def __call__(self, images):
@@ -186,7 +186,7 @@ class FaceDetector(DetectionModel):
 
         self.deeplab = DeepLabPredictor(self.deeplab_cfg)
         self.expansion  = expansion
-        
+
     def detect(self, image):
         """Detects bounding boxes with facenet and does segmentation with deeplab
         """
@@ -200,6 +200,7 @@ class FaceDetector(DetectionModel):
         image_patch_sizes = []
         exp_boxes = []
         max_w, max_h = 0, 0
+        
         for box in boxes:
             x1,y1,x2,y2 = box
             exp_x1 = max(0, x1 - self.expansion)
@@ -212,14 +213,14 @@ class FaceDetector(DetectionModel):
             image_patches += [image_patch]
             image_patch_sizes += [(patch_w, patch_h)]
             exp_boxes += [(exp_x1, exp_y1, exp_x2, exp_y2)]
-            
+
         # resize_image patch to max size
         for i,image_patch in enumerate(image_patches):
             image_patches[i] = cv2.resize(image_patch, (max_w, max_h))
 
         results = self.deeplab(image_patches)
-        
-        for res, size, exp_box in zip(results, image_patch_sizes, exp_boxes):
+
+        for res, size, exp_box, box in zip(results, image_patch_sizes, exp_boxes, boxes):
             sem_seg = res["sem_seg"]
             sem_seg = torch.max(sem_seg, dim=0)[1].cpu().numpy()
             skin_pixels = ((sem_seg==1)*255).astype('uint8')
@@ -229,14 +230,17 @@ class FaceDetector(DetectionModel):
             exp_x1, exp_y1, exp_x2, exp_y2 = exp_box
             mask[exp_y1:exp_y2+1, exp_x1:exp_x2+1] = skin_pixels
             ys, xs = mask.nonzero()
+            if len(ys) == 0:
+                refined_boxes += [box]
+                continue
             min_y, min_x = np.min(ys), np.min(xs)
             max_y, max_x = np.max(ys), np.max(xs)
             refined_boxes += [[min_x,min_y,max_x,max_y]]
             masks += [mask]
-            
+
         predictions["boxes"] = refined_boxes
         predictions["masks"] = masks
-        
+
         return predictions
 
 
