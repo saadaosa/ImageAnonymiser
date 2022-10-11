@@ -230,8 +230,11 @@ class FaceDetector(DetectionModel):
             exp_x1, exp_y1, exp_x2, exp_y2 = exp_box
             mask[exp_y1:exp_y2+1, exp_x1:exp_x2+1] = skin_pixels
             ys, xs = mask.nonzero()
-            if len(ys) == 0:
+            if len(ys) == 0: # if no mask 
+                x1,y1,x2,y2 = box
+                mask[y1:y2+1, x1:x2+1] = 255
                 refined_boxes += [box]
+                masks += [mask]
                 continue
             min_y, min_x = np.min(ys), np.min(xs)
             max_y, max_x = np.max(ys), np.max(xs)
