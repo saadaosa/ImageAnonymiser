@@ -14,3 +14,6 @@ unzip -d "$DIR_PATH"/. "$DIR_PATH"/"$TMPFILE"
 wget -q -O "$DIR_PATH"/"$TMPFILE" "$OCR_RECOGNISER_URL"
 unzip -d "$DIR_PATH"/. "$DIR_PATH"/"$TMPFILE"
 rm "$DIR_PATH"/"$TMPFILE"
+
+gdown 1NYAUd2H6pRC7moCoGgOYJLQWIxk9k65h -O "$DIR_PATH"/model_final.pth
+gdown 1XavQwpkpHZQpKKOX9P1-aHFpJmhZzeKM -O "$DIR_PATH"/model_final_cfg.pkl

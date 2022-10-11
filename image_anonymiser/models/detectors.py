@@ -1,13 +1,16 @@
+import pickle
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+import cv2
+import detectron2.projects.deeplab
 import easyocr
 import numpy as np
+import torch
 from detectron2 import model_zoo
 from detectron2.config import get_cfg
 from detectron2.data import MetadataCatalog
 from detectron2.engine import DefaultPredictor
-from detectron2.utils.visualizer import Visualizer
 from facenet_pytorch import MTCNN
 
 DETECTRON_DEFAULT = "COCO-PanopticSegmentation/panoptic_fpn_R_50_3x.yaml"
@@ -69,11 +72,11 @@ class DetectronDetector(DetectionModel):
         self.class_names = MetadataCatalog.get(self.dataset).thing_classes
         self.name2int = {self.class_names[i]:i for i in range(len(self.class_names))}
         self.threshold = threshold
+        self.predictor = DefaultPredictor(self.cfg)
 
     def detect(self, image):
         predictions = dict()
-        predictor = DefaultPredictor(self.cfg)
-        pred = predictor(image) # If no objects detected, pred will contain empty Tensors
+        pred = self.predictor(image) # If no objects detected, pred will contain empty Tensors
         predictions["pred_classes"] = pred["instances"].pred_classes.cpu().numpy().tolist()
         predictions["pred_labels"] = [self.class_names[i] for i in list(set(predictions["pred_classes"]))]
         predictions["scores"] = pred["instances"].scores.cpu().numpy().tolist()
@@ -101,12 +104,12 @@ class FaceNETDetector(DetectionModel):
         self.thresholds = thresholds
         self.device = device
         self.class_names = ['face']
+        self.predictor = MTCNN(keep_all=True, min_face_size=self.min_face_size, thresholds=self.thresholds, 
+                        device=self.device) 
 
     def detect(self, image):
         predictions = dict()
-        predictor = MTCNN(keep_all=True, min_face_size=self.min_face_size, thresholds=self.thresholds, 
-                        device=self.device) 
-        boxes, probs = predictor.detect(image) #If no objects detected, boxes will be None
+        boxes, probs = self.predictor.detect(image) #If no objects detected, boxes will be None
         if boxes is None:
             boxes = np.array([])
             probs = np.array([])
@@ -137,11 +140,11 @@ class OCRDetector(DetectionModel):
         self.gpu = gpu
         self.model_storage_directory = ARTIFACTS_DIR
         self.class_names = ['text']
+        self.reader = easyocr.Reader(self.lang_list, gpu=self.gpu, model_storage_directory=self.model_storage_directory)
 
     def detect(self, image):
         predictions = dict()
-        reader = easyocr.Reader(self.lang_list, gpu=self.gpu, model_storage_directory=self.model_storage_directory)
-        pred = reader.readtext(image) # If no objects detected, pred be an empty list
+        pred = self.reader.readtext(image) # If no objects detected, pred be an empty list
         predictions["pred_classes"] = [0 for _ in range(len(pred))]
         predictions["pred_labels"] = ['text'] if len(predictions["pred_classes"]) > 0 else []
         predictions["scores"] = [p[2] for p in pred]
@@ -165,8 +168,7 @@ class DetectronSingleDetector(DetectronDetector):
 
     def detect(self, image):
         predictions = dict()
-        predictor = DefaultPredictor(self.cfg)
-        pred = predictor(image) # If no objects detected, pred will contain empty Tensors
+        pred = self.predictor(image) # If no objects detected, pred will contain empty Tensors
         pred_classes = pred["instances"].pred_classes.cpu().numpy()
         mask = np.array([True if i == self.target_id else False for i in pred_classes]) 
         predictions["pred_classes"] = pred_classes[mask].tolist()
@@ -181,4 +183,108 @@ class DetectronSingleDetector(DetectronDetector):
         predictions["name2int"] = {self.class_names[0]:self.target_id}
         predictions["instance_ids"] = list(range(len(predictions["pred_classes"])))
         return predictions
-    
+
+class FaceDetector(DetectionModel):
+    """Face Detector that performs face detection with facenet and face segmentation
+    with deeplab
+    """
+    def __init__(self, min_face_size=20, thresholds=[0.6,0.7,0.7], expansion=20, deeplab_model="", device=None):
+        """Initialises facenet mtcnn input params and creates the deeplab default predictor
+        """
+        self.min_face_size = min_face_size
+        self.thresholds = thresholds
+        self.device = device
+        self.class_names = ['face']
+        self.facenet = FaceNETDetector(self.min_face_size, self.thresholds, self.device)
+
+        if deeplab_model:
+            deeplab_cfg_file = ARTIFACTS_DIR/(deeplab_model+"_cfg.pkl")
+            deeplab_model_file = ARTIFACTS_DIR/(deeplab_model+".pth")
+            if not deeplab_cfg_file.exists() or not deeplab_model_file.exists():
+                import wandb
+                api = wandb.Api()
+                artifact = api.artifact(f"fsdl_2022/face-seg/{deeplab_model}.pth:latest").download()
+                deeplab_model_file = artifact+f"/{deeplab_model}.pth"
+                artifact = api.artifact(f"fsdl_2022/face-seg/{deeplab_model}_cfg.pkl:latest").download()
+                deeplab_cfg_file = artifact+f"/{deeplab_model}_cfg.pkl"
+            else:
+                deeplab_cfg_file = str(deeplab_cfg_file)
+                deeplab_model_file = str(deeplab_model_file)
+        else:
+            raise Exception("deeplab_model was not supplied for the face detector, Please add this to the backend config.yml")
+
+        self.deeplab_cfg = pickle.load(open(deeplab_cfg_file, "rb"))
+        self.deeplab_cfg.defrost()
+        device = device or "cpu"
+        if device == "cpu":
+            self.deeplab_cfg.MODEL.RESNETS.NORM = "BN"
+            self.deeplab_cfg.MODEL.SEM_SEG_HEAD.NORM = "BN"
+        self.deeplab_cfg.MODEL.DEVICE = device
+        self.deeplab_cfg.MODEL.WEIGHTS = deeplab_model_file
+        # subclass the default predictor to enable batched inferrence
+        class DeepLabPredictor(DefaultPredictor):
+            def __call__(self, images):
+                with torch.no_grad():
+                    inputs = []
+                    for image in images:
+                        if self.input_format == "RGB":
+                            image = image[:, :, ::-1]
+                        height, width = image.shape[:2]
+                        image = self.aug.get_transform(image).apply_image(image)
+                        image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1))
+                        inputs += [{"image": image, "height": height, "width": width}]
+                    predictions = self.model(inputs)
+                    return predictions 
+
+        self.deeplab = DeepLabPredictor(self.deeplab_cfg)
+        self.expansion  = expansion
+        
+    def detect(self, image):
+        """Detects bounding boxes with facenet and does segmentation with deeplab
+        """
+        predictions = self.facenet.detect(image)
+        boxes = predictions["boxes"]
+        refined_boxes = []
+        masks = []
+        h, w = image.shape[:2]
+        image_patches = []
+        image_patch_sizes = []
+        exp_boxes = []
+        max_w, max_h = 0, 0
+        for box in boxes:
+            x1,y1,x2,y2 = box
+            exp_x1 = max(0, x1 - self.expansion)
+            exp_y1 = max(0, y1 - self.expansion)
+            exp_x2 = min(w, x2 + self.expansion)
+            exp_y2 = min(h, y2 + self.expansion)
+            image_patch = image.copy()[exp_y1:exp_y2+1, exp_x1:exp_x2+1]
+            patch_h, patch_w = image_patch.shape[:2]
+            max_w, max_h = max(max_w, patch_w), max(max_h, patch_h)
+            image_patches += [image_patch]
+            image_patch_sizes += [(patch_w, patch_h)]
+            exp_boxes += [(exp_x1, exp_y1, exp_x2, exp_y2)]
+            
+        # resize_image patch to max size
+        for i,image_patch in enumerate(image_patches):
+            image_patches[i] = cv2.resize(image_patch, (max_w, max_h))
+
+        results = self.deeplab(image_patches)
+        for res, size, exp_box in zip(results, image_patch_sizes, exp_boxes):
+            sem_seg = res["sem_seg"]
+            sem_seg = torch.max(sem_seg, dim=0)[1].cpu().numpy()
+            skin_pixels = ((sem_seg==1)*255).astype('uint8')
+            skin_pixels = cv2.erode(skin_pixels, np.ones((5,5), np.uint8), iterations=1)
+            skin_pixels = cv2.resize(skin_pixels, size)
+            mask = np.zeros_like(image)[:,:,0]
+            exp_x1, exp_y1, exp_x2, exp_y2 = exp_box
+            mask[exp_y1:exp_y2+1, exp_x1:exp_x2+1] = skin_pixels
+            ys, xs = mask.nonzero()
+            min_y, min_x = np.min(ys), np.min(xs)
+            max_y, max_x = np.max(ys), np.max(xs)
+            refined_boxes += [[min_x,min_y,max_x,max_y]]
+            masks += [mask]
+            
+        predictions["boxes"] = refined_boxes
+        predictions["masks"] = masks
+        
+        return predictions    

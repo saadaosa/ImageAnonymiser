@@ -53,7 +53,7 @@ class DetectorBackend():
             predictions = self.detectors_fn[model_index](image, **params)
         return predictions
 
-    def get_pred_types(self, predictions):
+    def get_pred_types(self, predictions, incl_user_boxes=False):
         """ Returns the types of predictions returned by the Detect method
         
         Params:
@@ -64,20 +64,27 @@ class DetectorBackend():
                     "mask" for segmentation result)
         """
         result = list()
-        if predictions["boxes"] != []: result.append("box")
+        if incl_user_boxes and "boxes_adj" in predictions:
+            if predictions["boxes_adj"] != []: result.append("box")
+        else:
+            if predictions["boxes"] != []: result.append("box")
         if predictions["masks"] != []: result.append("mask")
         return result
 
-    def get_pred_classes(self, predictions):
+    def get_pred_classes(self, predictions, incl_user_boxes=False):
         """ Returns the class names returnd by the Detect method
 
         Params:
             predictions: dict, as described in DetectionModel.detect
+            incl_user_boxes, bool (default False)
         
         Returns:
             result: list, that contains the class names (without duplicates)
         """
-        return predictions["pred_labels"]
+        if incl_user_boxes and "boxes_adj" in predictions:
+            return predictions["pred_labels_adj"]
+        else:
+            return predictions["pred_labels"]
 
     def get_instance_ids(self, class_name, predictions, incl_user_boxes=False):
         """ Returns the instances ids of for a given class
@@ -160,15 +167,17 @@ class DetectorBackend():
             boxes = predictions["boxes_adj"]
             pred_classes = predictions["pred_classes_adj"]
             instance_ids = predictions["instance_ids_adj"]
+            pred_labels = predictions["pred_labels_adj"]
         else:
             boxes = predictions["boxes"]
             pred_classes = predictions["pred_classes"]
             instance_ids = predictions["instance_ids"]
+            pred_labels = predictions["pred_labels"]
         color_map = {predictions["name2int"][name]:(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) 
-                            for name in predictions["pred_labels"]} 
+                            for name in pred_labels} 
         colors = [color_map[id] for id in pred_classes]
         labels = list()
-        multi_class = len(predictions["pred_labels"]) > 1
+        multi_class = len(pred_labels) > 1
         for c_id,i_id in zip(pred_classes, instance_ids):
             if multi_class:
                 labels.append(f'{predictions["class_names"][c_id]}_{i_id}')
@@ -206,13 +215,18 @@ class DetectorBackend():
                 predictions["scores_adj"] = predictions["scores"].copy() 
                 predictions["boxes_adj"] = predictions["boxes"].copy()
                 predictions["instance_ids_adj"] = predictions["instance_ids"].copy()
-            predictions["pred_classes_adj"].append(label_id)
+                predictions["pred_labels_adj"] = predictions["pred_labels"].copy()
             predictions["scores_adj"].append(1)
             predictions["boxes_adj"].append(box)
+            if label not in predictions["pred_labels_adj"]:
+                predictions["pred_labels_adj"].append(label)
             if len(predictions["class_names"]) > 1:
-                new_id = sum(1 if label_id == c else 0 for c in predictions["pred_classes"])
+                new_id = 0
+                if new_id in predictions["pred_classes_adj"]:
+                    new_id = sum(1 if label_id == c else 0 for c in predictions["pred_classes_adj"])
             else:
-                new_id = len(predictions["instance_ids"])
+                new_id = len(predictions["instance_ids_adj"])
+            predictions["pred_classes_adj"].append(label_id)
             predictions["instance_ids_adj"].append(new_id)
         return predictions
 

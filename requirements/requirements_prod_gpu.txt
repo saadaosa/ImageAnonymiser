@@ -11,3 +11,4 @@ facenet-pytorch==2.5.2
 easyocr==1.6.2
 streamlit==1.13.0
 streamlit-cropper==0.2.0
+gdown==4.5.1

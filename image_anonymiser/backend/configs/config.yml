@@ -4,6 +4,20 @@ anonyniser:
   min_blur_intensity: 1
 
 detectors:
+  # - class: "FaceDetector"
+  #   name: "Face detection"
+  #   description: "Can identify faces in an image. It produces bounding boxes and segmentation masks (identifies the targets at a pixel level)"
+  #   url: null
+  #   params:
+  #     min_face_size: 20
+  #     thresholds:
+  #       - 0.6
+  #       - 0.7
+  #       - 0.7
+  #     device: null
+  #     expansion: 20
+  #     deeplab_model: "model_final"
+
   - class: "FaceNETDetector"
     name: "Face detection"
     description: "Can identify faces in an image. It produces bounding boxes around the targets identified in the input"
@@ -48,5 +62,6 @@ detectors:
       threshold: 0.7
 
 file_io:
-  path: "flagged_images"
-  logdir: "logs"
+  flagged_path: "data_volume/flagged_images"
+  feedback_path: "data_volume/feedback"
+  logdir: "data_volume/logs"

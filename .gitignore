@@ -132,4 +132,8 @@ dmypy.json
 image_anonymiser/app_gradio/examples/
 image_anonymiser/models/artifacts/*.pth 
 image_anonymiser/models/artifacts/*.pkl
+data_volume/flagged_images/
+data_volume/logs/
+data_volume/feedback/
 requirements/requirements_dev.txt
+image_anonymiser/experiments
