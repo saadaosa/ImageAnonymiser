@@ -126,16 +126,14 @@ def btn_anonymise(image, predictions, anonym_type, compound, target_type, blur_s
 # Functions used to create certain components of the app and define their call backs
 def crearte_detect_params():
     ''' Creates the selectbox to choose the model and the detect button
-        Returns the model_choice
     '''
     st.sidebar.markdown("### 2. Choose detection model")
     model_choice = st.sidebar.selectbox(label="Detection Model", options=detector.choices, 
                     label_visibility="collapsed")
     model_index = detector.choices.index(model_choice)
     st.sidebar.button(label="Detect", on_click=partial(btn_detect, image=image, model_index=model_index))
-    return model_choice
 
-def create_output(image, predictions, pred_types, pred_classes, model_index, col1, col2):
+def create_output(image, predictions, pred_types, pred_classes, col1, col2):
     ''' Contains the logic of the components created if there are predictions in session_state
         It visualises the boxes detected in the image (if any)
         It creates the input parameters for the anonymisation in the sidebar
@@ -146,9 +144,9 @@ def create_output(image, predictions, pred_types, pred_classes, model_index, col
         if pred_types == []: # A prediction has been done but the result is empty (display the input image)
             st.markdown("### No object detected")
         else:
-            model_choice = detector.choices[model_index]
-            st.markdown(f"### Detection output: {model_choice}")
-            if in_session_state("pred_image"):
+            if in_session_state("pred_image"): # this check shouldn't be needed
+                model_choice = detector.choices[st.session_state["model_index"]]
+                st.markdown(f"### Detection output: {model_choice}")
                 pred_image = st.session_state["pred_image"]
                 img_display = pred_image
         st.image(img_display)
@@ -221,20 +219,19 @@ try:
         # Load input image from cache
         image = st.session_state["input_image"]
         # Display detection params
-        model_choice = crearte_detect_params()
+        crearte_detect_params()
         col1, col2 = st.columns(2) # Split the screen in two parts for the display
         if "predictions" in st.session_state: # A detection model has already been used
             predictions = st.session_state["predictions"]
             pred_types = detector.get_pred_types(predictions, True)
             pred_classes = detector.get_pred_classes(predictions, True)
         # Display output (both detection and anonymisation) 
-            model_index = detector.choices.index(model_choice)
-            create_output(image, predictions, pred_types, pred_classes, model_index, col1, col2)
+            create_output(image, predictions, pred_types, pred_classes, col1, col2)
         else: # No model used yet so display the input image
             with col1:
                 st.markdown("### Input image")    
                 st.image(image)
 
 except Exception as e:
-    st.error(f"Something went wrong. Please refresh and try again. {str(e)}")
+    st.error(f"Something went wrong. Please refresh and try again.")
     file_io.store_exception(e)
