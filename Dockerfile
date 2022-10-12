@@ -17,4 +17,4 @@ RUN chmod +x image_anonymiser/models/artifacts/get_model_weights.sh
 RUN image_anonymiser/models/artifacts/get_model_weights.sh
 
 
-ENTRYPOINT ["sh", "image_anonymiser/launch.sh"]
+ENTRYPOINT ["image_anonymiser/launch.sh"]
