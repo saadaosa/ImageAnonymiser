@@ -1,3 +1,4 @@
+import typing
 from functools import partial
 
 import PIL.Image
@@ -28,21 +29,24 @@ class App():
     """
 
     def __init__(self):
-        self._detector = self._get_detector()
-        self._anonymiser = self._get_anonymiser()
-        self._file_io = self._get_file_io()
+        self._anonymiser, self._detector, self._file_io = self._get_backend()
 
-    @st.cache
-    def _get_anonymiser(self) -> AnonymiserBackend:
-        return AnonymiserBackend(CONFIG)
+    @staticmethod
+    @st.experimental_singleton
+    def _get_backend() -> typing.Tuple[AnonymiserBackend, DetectorBackend, FileIO]:
+        """
+        Returns initialized backend components.
+        Uses streamlit's singleton, to avoid recreating individual components for each page individually.
 
-    @st.cache
-    def _get_detector(self) -> DetectorBackend:
-        return DetectorBackend(CONFIG)
+        Returns: Tuple with Anonymiser, Detector and File IO.
 
-    @st.cache
-    def _get_file_io(self) -> FileIO:
-        return FileIO(CONFIG)
+        """
+
+        return (
+            AnonymiserBackend(CONFIG),
+            DetectorBackend(CONFIG),
+            FileIO(CONFIG)
+        )
 
     def _on_reupload(self) -> None:
         """ Reupload Image event

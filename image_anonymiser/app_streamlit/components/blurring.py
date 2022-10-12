@@ -12,7 +12,6 @@ class Blurring():
     Handles generating Step 3. in the sidebar and right part of the main screen.
     """
 
-
     def __init__(self, detector: DetectorBackend, anonymiser: AnonymiserBackend) -> None:
         self._predictions = st.session_state["predictions"]
 
@@ -100,7 +99,6 @@ class Blurring():
                 anonym_type="color",
                 color=color
             )
-
 
         # Handling of the compound image - we store it in the "image_keep"
         if self.compound:
