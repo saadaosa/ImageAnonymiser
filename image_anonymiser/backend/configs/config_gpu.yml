@@ -28,7 +28,7 @@ detectors:
         - 0.6
         - 0.7
         - 0.7
-      device: null
+      device: "cuda"
 
   - class: "DetectronSingleDetector"
     name: "Person detection"
