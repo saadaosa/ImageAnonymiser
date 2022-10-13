@@ -5,6 +5,7 @@ import typing
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import yaml
 from PIL import Image
 
@@ -125,35 +126,17 @@ class FileIO():
             feedback: String Feedback
         """
 
-        filename = f"{self._current_time_str()}_{name}.txt"
-        path = self._feedback_dir / filename
-        path.write_text(feedback)
+        with open(self._feedback_dir / "feedback.csv", "a") as f:
+            f.write(f"{name},{self._current_time_str()},{feedback}\n")
 
-    def get_feedback(self, filename: Path) -> str:
+    def get_feedback(self) -> pd.DataFrame:
         """
         Read User Feedback
         Args:
             filename: path to filename where to red from
-        Returns: String with user feedback
+        Returns: pandas Dataframe of user feedbacks
         """
-
-        path = filename
-        feedback = path.read_text()
-
-        return feedback
-
-    def list_feedback_directory(self, top: int = 20) -> typing.List[Path]:
-        """
-        Show contents of the user feedback directory.
-        Only return [top] records, sorted in reverse order
-        This way, and with us having date in the folder name ensures, that
-        we return the newest records.
-        Args:
-            top (int): Amount of records to return
-        Returns: list of paths to the files - [top] items are returned in reverse order
-        """
-
-        items = [x for x in self._feedback_dir.iterdir() if x.is_file()]
-        items.sort(reverse=True)
-
-        return items[:top]
+        if not Path(self._feedback_dir / "feedback.csv").exists():
+            return pd.DataFrame(columns=["User", "Date", "Feedback"])
+        else:
+            return pd.read_csv(self._feedback_dir / "feedback.csv", names=["User", "Date", "Feedback"])

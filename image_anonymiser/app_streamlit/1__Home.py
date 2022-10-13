@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import sys
 from functools import partial
 
@@ -19,19 +20,22 @@ def init_backend(args):
     '''
     def parse_args(args):
         parser = argparse.ArgumentParser()
-        parser.add_argument("--bconfig", 
-                        default="config.yml", 
-                        type=str, 
+        parser.add_argument("--bconfig",
+                        default="config.yml",
+                        type=str,
                         help=f"Name of the backend config file")
         parsed_args = parser.parse_args()
-            
+
         return parsed_args
     parsed_args = parse_args(args)
     config_name = parsed_args.bconfig
     return DetectorBackend(config_name), AnonymiserBackend(config_name), FileIO(config_name)
 
 # Initialise Backend
-detector, anonymiser, file_io =  init_backend(sys.argv[1:])
+try:
+    detector, anonymiser, file_io =  init_backend(sys.argv[1:])
+except Exception as e:
+    st.error(f"Something went wrong. Please refresh and try again.")
 
 # Functions called when the user interacts with specific streamlit components
 def input_image_changed():
@@ -79,15 +83,20 @@ def btn_add_user_box(image, box, label, predictions):
     st.session_state["predictions"] = predictions
     st.session_state["pred_image"] = detector.visualise_boxes(image, predictions, True)
 
-def btn_annotations(image, predictions, allow_save):
+def btn_annotations(image, predictions, model_id, allow_save):
     """ Send the input image and the predictions (including the user annotations) to the backend
     """
+    additional_info = {
+        "used_model": detector.choices[model_id],
+        'detect_date': datetime.datetime.now().strftime('%Y-%m-%d at %H:%M:%S')
+    }
+
     if allow_save:
-        file_io.store_image_with_predictions(image, predictions)
+        file_io.store_image_with_predictions(image, additional_info, predictions)
         with st.columns(3)[0]:
             st.success("**Thank you 🙏**") ## todo: change location where this is displayed?
 
-def btn_anonymise(image, predictions, anonym_type, compound, target_type, blur_strength, color, 
+def btn_anonymise(image, predictions, anonym_type, compound, target_type, blur_strength, color,
                 anonym_class, anonym_instance):
     ''' Function called when the user clicks on the anonymise button
         If the compound parameter is True, it loads the previous anonym_image (if it exists) from session_state
@@ -106,7 +115,7 @@ def btn_anonymise(image, predictions, anonym_type, compound, target_type, blur_s
     elif anonym_type == "color":
         anonym_color = anonymiser.convert_color_hex_to_rgb(color)
         anonym_img = anonymiser.anonymise(input_img, target_regions, anonym_type=anonym_type, color=anonym_color)
-    st.session_state["anonym_image"] = anonym_img  
+    st.session_state["anonym_image"] = anonym_img
 
 # Functions originally used as a wrapper around the backend calls in order to cache the results
 # Not used due to performance issues when reading from cache
@@ -128,7 +137,7 @@ def crearte_detect_params():
     ''' Creates the selectbox to choose the model and the detect button
     '''
     st.sidebar.markdown("### 2. Choose detection model")
-    model_choice = st.sidebar.selectbox(label="Detection Model", options=detector.choices, 
+    model_choice = st.sidebar.selectbox(label="Detection Model", options=detector.choices,
                     label_visibility="collapsed")
     model_index = detector.choices.index(model_choice)
     st.sidebar.button(label="Detect", on_click=partial(btn_detect, image=image, model_index=model_index))
@@ -170,7 +179,7 @@ def create_user_boxes(image, predictions):
         st.button(label="Add Box", on_click=partial(btn_add_user_box, image, box, label, predictions))
         store_annotations = st.checkbox(label="Allow storing my image for model improvement", value=True)
         if store_annotations:
-            st.button(label="Send your annotations", on_click=partial(btn_annotations, image, predictions, 
+            st.button(label="Send your annotations", on_click=partial(btn_annotations, image, predictions, model_index,
                                             store_annotations))
 
 def create_anonym_params(image, predictions, pred_classes, pred_types):
@@ -179,7 +188,7 @@ def create_anonym_params(image, predictions, pred_classes, pred_types):
     c1 = st.sidebar.columns(3)
     target_type = c1[0].selectbox(label="Target Type", options=pred_types)
     anonym_type = c1[1].selectbox(label="Anonymisation", options=["blur", "color"])
-    if anonym_type == "color": 
+    if anonym_type == "color":
         blur_strength = None
         color = c1[2].color_picker(label="Pick Color")
     if anonym_type == "blur":
@@ -211,7 +220,7 @@ try:
 
     # Image uploader
     st.sidebar.markdown("### 1. Upload an Image")
-    image_uploader = st.sidebar.file_uploader(label='Image Upload', type=['png', 'jpg', 'jpeg'], 
+    image_uploader = st.sidebar.file_uploader(label='Image Upload', type=['png', 'jpg', 'jpeg'],
                 on_change=input_image_changed, key="image_uploader", label_visibility="collapsed")
 
     st.markdown(" ## 👻 Image Anonymiser")
@@ -225,11 +234,11 @@ try:
             predictions = st.session_state["predictions"]
             pred_types = detector.get_pred_types(predictions, True)
             pred_classes = detector.get_pred_classes(predictions, True)
-        # Display output (both detection and anonymisation) 
+        # Display output (both detection and anonymisation)
             create_output(image, predictions, pred_types, pred_classes, col1, col2)
         else: # No model used yet so display the input image
             with col1:
-                st.markdown("### Input image")    
+                st.markdown("### Input image")
                 st.image(image)
 
 except Exception as e:

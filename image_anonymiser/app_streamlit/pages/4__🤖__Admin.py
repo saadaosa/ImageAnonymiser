@@ -75,15 +75,6 @@ def checkbox_img_flagged(dir_name, column):
         st.image(image_vis)
 
 
-def btn_user_feedback(file_name, column):
-    """ Load the feedbacks provided by the users
-        ##todo Probably change and display all feedbacks in df?
-    """
-    feedback = file_io.get_feedback(file_name)
-    with column:
-        st.text(feedback)
-
-
 # Create the components of the app
 try:
     st.set_page_config(layout="wide", page_title="Image Anonymiser - Admin", page_icon="🤖")
@@ -102,12 +93,8 @@ try:
 
         # tab to display user feedbacks
         with tab_feedback:
-            user_feedbacks = file_io.list_feedback_directory()
-            c1, c2, c3 = st.columns([2, 1, 5])
-            for ufb in user_feedbacks:
-                c1.text(ufb.name)
-                c2.button(key=ufb, label="Show", on_click=partial(btn_user_feedback, file_name=ufb, column=c3))
+            st.dataframe(file_io.get_feedback().iloc[:100])
 
 except Exception as e:
-    st.error(f"Something went wrong. Please refresh and try again. {str(e)}")
+    st.error(f"Something went wrong. Please refresh and try again.")
     file_io.store_exception(e)
