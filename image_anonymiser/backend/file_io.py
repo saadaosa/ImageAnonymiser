@@ -5,6 +5,7 @@ import typing
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import yaml
 from PIL import Image
 
@@ -55,11 +56,12 @@ class FileIO():
         logging.basicConfig(level=logging.DEBUG, format=FORMAT, handlers=[handler])
         logging.error("Error in Streamlit App", exc_info=exception)
 
-    def store_image_with_predictions(self, image: np.array, predictions: typing.Dict) -> None:
+    def store_image_with_predictions(self, image: np.array, additional_info: typing.Dict, predictions: typing.Dict) -> None:
         """ Storing Flagged Images
         Store image together with the predictions, both user-defined and model-detected.
         Args:
             image(np.array): image to store
+            additional_info(dict): additional information for the anonymiser
             predictions(dict): predictions dictionary from the detector component
         """
 
@@ -70,15 +72,22 @@ class FileIO():
             with open(folder_name / "predictions.json", "w") as outfile:
                 json.dump(predictions, outfile)
 
+            with open(folder_name / "additional_info.json", "w") as outfile:
+                json.dump(additional_info, outfile)
+
             img = Image.fromarray(image)
             img.save(folder_name / "image.jpeg", format="JPEG")
 
-    def load_image_with_predictions(self, folder: str) -> (np.array, typing.Dict):
+    def load_image_with_predictions(self, folder: str) -> (np.array, typing.Dict, typing.Dict):
         """ Get Flagged Image
         Loads image and predictions, as stored by the store_image_with_predictions method
         Args:
             folder (str): folder name containing the image and predicitons
-        Returns: tuple (array, dict) with image and predictions.
+        Returns:
+            tuple (array, dict, dict)
+                image
+                predictions
+                additional info.
         """
 
         folder = Path(folder)
@@ -86,9 +95,12 @@ class FileIO():
         with open(folder / "predictions.json", "r") as infile:
             predictions = json.load(infile)
 
+        with open(folder / "additional_info.json", "r") as infile:
+            additional_info = json.load(infile)
+
         image = Image.open(folder / "image.jpeg")
 
-        return np.array(image), predictions
+        return np.array(image), predictions, additional_info
 
     def list_flagged_directory(self, top: int = 20) -> typing.List[Path]:
         """
@@ -114,35 +126,17 @@ class FileIO():
             feedback: String Feedback
         """
 
-        filename = f"{self._current_time_str()}_{name}.txt"
-        path = self._feedback_dir / filename
-        path.write_text(feedback)
+        with open(self._feedback_dir / "feedback.csv", "a") as f:
+            f.write(f"{name},{self._current_time_str()},{feedback}\n")
 
-    def get_feedback(self, filename: Path) -> str:
+    def get_feedback(self) -> pd.DataFrame:
         """
         Read User Feedback
         Args:
             filename: path to filename where to red from
-        Returns: String with user feedback
+        Returns: pandas Dataframe of user feedbacks
         """
-
-        path = filename
-        feedback = path.read_text()
-
-        return feedback
-
-    def list_feedback_directory(self, top: int = 20) -> typing.List[Path]:
-        """
-        Show contents of the user feedback directory.
-        Only return [top] records, sorted in reverse order
-        This way, and with us having date in the folder name ensures, that
-        we return the newest records.
-        Args:
-            top (int): Amount of records to return
-        Returns: list of paths to the files - [top] items are returned in reverse order
-        """
-
-        items = [x for x in self._feedback_dir.iterdir() if x.is_file()]
-        items.sort(reverse=True)
-
-        return items[:top]
+        if not Path(self._feedback_dir / "feedback.csv").exists():
+            return pd.DataFrame(columns=["User", "Date", "Feedback"])
+        else:
+            return pd.read_csv(self._feedback_dir / "feedback.csv", names=["User", "Date", "Feedback"])

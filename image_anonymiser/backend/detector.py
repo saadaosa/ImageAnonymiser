@@ -1,14 +1,13 @@
 import random
 from itertools import compress
-from pathlib import Path
 
-import cv2
 import yaml
 
 from image_anonymiser.models.detectors import *
 
-PAR_DIR = Path(__file__).resolve().parent 
+PAR_DIR = Path(__file__).resolve().parent
 CONFIG_DIR = PAR_DIR / "configs"
+
 
 class DetectorBackend():
     """ Interface to a backend that returns predictions
@@ -27,7 +26,7 @@ class DetectorBackend():
             detector = globals()[d["class"]](**d["params"])
             self.choices.append(d["name"])
             self.descriptions.append(d["description"])
-            self.classes.append(detector.class_names) 
+            self.classes.append(detector.class_names)
             if d["url"] is None:
                 self.detectors.append(detector)
                 self.detectors_fn.append(detector.detect)
@@ -106,7 +105,7 @@ class DetectorBackend():
             pred_classes = predictions["pred_classes"]
             i_ids = predictions["instance_ids"]
         mask = [True if i == class_id else False for i in pred_classes]
-        instance_ids = list(compress(i_ids,mask))
+        instance_ids = list(compress(i_ids, mask))
         if len(instance_ids) > 1: result.extend(instance_ids)
         return result
 
@@ -130,7 +129,7 @@ class DetectorBackend():
                 pred_classes = predictions["pred_classes_adj"]
             else:
                 boxes = predictions["boxes"]
-                pred_classes = predictions["pred_classes"] 
+                pred_classes = predictions["pred_classes"]
             mask = np.array([True if i == class_id else False for i in pred_classes])
             boxes = np.array(boxes)[mask]
             if instance_id != "all":
@@ -154,12 +153,53 @@ class DetectorBackend():
         box_indices_x = list()
         for box in boxes:
             x1, y1, x2, y2 = box
-            tmp.extend((y,x) for y in range(y1,y2) for x in range(x1,x2))
+            tmp.extend((y, x) for y in range(y1, y2) for x in range(x1, x2))
         box_indices_y = [t[0] for t in tmp]
         box_indices_x = [t[1] for t in tmp]
         return (np.array(box_indices_y), np.array(box_indices_x))
 
-    def visualise_boxes(self, image, predictions, incl_user_boxes = False):
+    def _get_colors(self, name2int, pred_labels, pred_classes, is_user_box):
+
+        color_map = {name2int[name]: (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+                     for name in pred_labels}
+
+        if is_user_box is not None:
+
+            color_map_user = {name2int[name]: (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+                              for name in pred_labels}
+
+            colors = []
+            for id, is_userbox in zip(pred_classes, is_user_box):
+                c = color_map_user[id] if is_userbox else color_map[id]
+                colors.append(c)
+
+            return colors
+
+        else:
+            return [color_map[id] for id in pred_classes]
+
+    def _get_optimal_font_scale(self, text, width, thick):
+        for scale in reversed(range(0, 60, 1)):
+            textSize = cv2.getTextSize(text, fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=scale / 10, thickness=thick)
+            new_width = textSize[0][0]
+            if (new_width <= width):
+                print(new_width)
+                return scale / 10
+        return 1
+
+    def _draw_text(self, image, box, text, color, thick):
+        x1, y1, x2, y2 = box
+        font_scale = self._get_optimal_font_scale(text, x2-x1, thick)
+
+        (text_width, text_height) = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, fontScale=font_scale, thickness=thick)[0]
+
+        # set the text start position
+        text_offset_x = 1 + x1
+        text_offset_y = 1 + y1 + text_height
+
+        cv2.putText(image, text, (text_offset_x, text_offset_y), cv2.FONT_HERSHEY_SIMPLEX, fontScale=font_scale, color=color, thickness=thick)
+
+    def visualise_boxes(self, image, predictions, incl_user_boxes=False):
         """ Function used to visualise boxes detected   
         """
         output = np.copy(image)
@@ -168,25 +208,33 @@ class DetectorBackend():
             pred_classes = predictions["pred_classes_adj"]
             instance_ids = predictions["instance_ids_adj"]
             pred_labels = predictions["pred_labels_adj"]
+            is_user_box = predictions["is_user_box"]
+
         else:
             boxes = predictions["boxes"]
             pred_classes = predictions["pred_classes"]
             instance_ids = predictions["instance_ids"]
             pred_labels = predictions["pred_labels"]
-        color_map = {predictions["name2int"][name]:(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) 
-                            for name in pred_labels} 
-        colors = [color_map[id] for id in pred_classes]
+            is_user_box = None
+
+        colors = self._get_colors(predictions["name2int"], pred_labels, pred_classes, is_user_box)
+
         labels = list()
         multi_class = len(pred_labels) > 1
-        for c_id,i_id in zip(pred_classes, instance_ids):
+
+        for c_id, i_id in zip(pred_classes, instance_ids):
             if multi_class:
                 labels.append(f'{predictions["class_names"][c_id]}_{i_id}')
             else:
                 labels.append(f'{i_id}')
-        for box,color,label in zip(boxes,colors,labels):
+
+        for box, color, label, c_id in zip(boxes, colors, labels, pred_classes):
             x1, y1, x2, y2 = box
-            cv2.rectangle(output, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(output, label, (x1,y1), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, 1)
+            thick = int((output.shape[0] + output.shape[1]) // 500.0)
+            cv2.rectangle(output, (x1, y1), (x2, y2), color, thick)
+
+            cname = predictions["class_names"][c_id]
+            self._draw_text(output, box, f"{cname} {label}", color, thick)
         return output
 
     def add_labeled_box(self, box, label, predictions):
@@ -212,12 +260,16 @@ class DetectorBackend():
             else:
                 predictions["user_boxes"] = [box]
                 predictions["pred_classes_adj"] = predictions["pred_classes"].copy()
-                predictions["scores_adj"] = predictions["scores"].copy() 
+                predictions["scores_adj"] = predictions["scores"].copy()
                 predictions["boxes_adj"] = predictions["boxes"].copy()
                 predictions["instance_ids_adj"] = predictions["instance_ids"].copy()
                 predictions["pred_labels_adj"] = predictions["pred_labels"].copy()
+                predictions["is_user_box"] = [False for _ in predictions["scores"]]
+
             predictions["scores_adj"].append(1)
             predictions["boxes_adj"].append(box)
+            predictions["is_user_box"].append(True)
+
             if label not in predictions["pred_labels_adj"]:
                 predictions["pred_labels_adj"].append(label)
             if len(predictions["class_names"]) > 1:
@@ -230,11 +282,13 @@ class DetectorBackend():
             predictions["instance_ids_adj"].append(new_id)
         return predictions
 
+
 class RemoteDetector():
     """ Class used to run a detection via url
     """
+
     def __init__(self, detector, url=None):
-        self.detector = detector # kept for the time being in case we need info about the detector without calling the endpoint
+        self.detector = detector  # kept for the time being in case we need info about the detector without calling the endpoint
         self.url = url
 
     def detect_from_endpoint(self, image, **params):
@@ -248,5 +302,5 @@ class RemoteDetector():
 
         Returns:
             predictions: dict, predictions as returned by the dection models
-        """ 
-        raise NotImplementedError(f"Endpoint detection not implemented yet, use local backend") 
+        """
+        raise NotImplementedError(f"Endpoint detection not implemented yet, use local backend")
