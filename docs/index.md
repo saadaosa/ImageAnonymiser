@@ -163,9 +163,9 @@ The backend consists of three main components:
 
 - Finally to provide https access, we use a [Ngrok](https://ngrok.com/) agent (instruction also available on [Github](https://github.com/saadaosa/ImageAnonymiser))
 
-**Main lesson learnt**: Even if you are still in an early stage and not using managed services, there are simple optimisation tasks that can help massively with deployment including: 
+**Main lesson learnt**: Even if you are still in an early stage and not using managed/orchestration services yet, there are simple optimisation tasks that can help massively with deployment including: 
 - restructuring your dockerfiles to take advantage of caching and not re-running the whole process from scratch. This is particularly useful when you have libraries like Pytorch and your requirements file doesn't change. In this case make sure that the install of the libs happens before the copy command of your revised app
-- Leveraging scripting as much as possible 
+- Leveraging scripting as much as possible to automate tasks like launching the gradio/streamlit applications
 
 #### Conclusion
 
