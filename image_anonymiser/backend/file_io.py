@@ -104,7 +104,7 @@ class FileIO():
         else:
             additional_info = None
 
-        if Path(folder / "image.jpeg").exists()
+        if Path(folder / "image.jpeg").exists():
             image = Image.open(folder / "image.jpeg")
             image = np.array(image)
         else:
