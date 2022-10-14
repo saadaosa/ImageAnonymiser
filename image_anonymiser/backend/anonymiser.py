@@ -5,14 +5,15 @@ import numpy as np
 import yaml
 
 PAR_DIR = Path(__file__).resolve().parent 
-ANONYMISER_CONFIG = PAR_DIR / "config.yml"
+CONFIG_DIR = PAR_DIR / "configs"
 
 class AnonymiserBackend():
     """ Interface to a backend that returns an anonymised image
     """
 
-    def __init__(self, config=ANONYMISER_CONFIG):
-        with open(config, 'r') as file:
+    def __init__(self, config):
+        config_file = CONFIG_DIR / config
+        with open(config_file, 'r') as file:
             self.config = yaml.safe_load(file)
         url = self.config["anonyniser"]["url"]
         if url is None: # use local backend
