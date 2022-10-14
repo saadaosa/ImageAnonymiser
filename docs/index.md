@@ -124,7 +124,7 @@ The backend consists of three main components:
 
 - Manages all the functionalities related to the anonymisation i.e. blurring functionality (for this we leverage [opencv](https://opencv.org/)), coloring, conversions from user inputs to opencv parameters 
 
- ###### c) The data persistence module (FileIO)
+###### c) The data persistence module (FileIO)
 
 - Implements all the functionalities needed for:
   - storing/retrieving images flagged/annotated by the user
