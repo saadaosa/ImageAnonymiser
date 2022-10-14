@@ -10,10 +10,10 @@ import PIL.Image
 import requests
 import yaml
 
-from image_anonymiser.models.detectors import (DetectronDetector,
-                                               DetectronSingleDetector,
-                                               FaceDetector, FaceNETDetector,
-                                               OCRDetector)
+# from image_anonymiser.models.detectors import (DetectronDetector,
+#                                                DetectronSingleDetector,
+#                                                FaceDetector, FaceNETDetector,
+#                                                OCRDetector)
 
 PAR_DIR = Path(__file__).resolve().parent 
 CONFIG_DIR = PAR_DIR / "configs"
