@@ -148,7 +148,7 @@ The backend consists of three main components:
 #### Deployment
 
 <p align="center">
-<img src="./assets/deployment.png" width="500" height="250"/>
+<img src="./assets/deployment_1.png" width="500" height="250"/>
 </p>
 
 - We containarised our services and provided instructions/scripts that can be found in our [Github repo](https://github.com/saadaosa/ImageAnonymiser)
