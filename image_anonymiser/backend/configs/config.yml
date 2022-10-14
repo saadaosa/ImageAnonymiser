@@ -1,3 +1,6 @@
+backend:
+  url: True
+
 anonyniser:
   url: null
   max_blur_intensity: 57
