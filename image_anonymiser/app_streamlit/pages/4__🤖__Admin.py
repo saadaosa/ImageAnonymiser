@@ -5,7 +5,7 @@ from functools import partial
 
 import streamlit as st
 
-from image_anonymiser.backend.detectorv2 import DetectorBackend
+from image_anonymiser.backend.detectorserver import DetectorBackend
 from image_anonymiser.backend.file_io import FileIO
 
 

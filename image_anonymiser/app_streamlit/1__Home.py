@@ -9,7 +9,7 @@ import streamlit as st
 from streamlit_cropper import st_cropper
 
 from image_anonymiser.backend.anonymiser import AnonymiserBackend
-from image_anonymiser.backend.detectorv2 import DetectorBackend
+from image_anonymiser.backend.detectorserver import DetectorBackend
 from image_anonymiser.backend.file_io import FileIO
 
 

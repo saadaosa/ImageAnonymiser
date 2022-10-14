@@ -10,8 +10,6 @@ import PIL.Image
 import requests
 import yaml
 
-from image_anonymiser.models.detectors import *
-
 PAR_DIR = Path(__file__).resolve().parent 
 CONFIG_DIR = PAR_DIR / "configs"
 
@@ -28,13 +26,7 @@ class DetectorBackend():
         self.classes = list()
         self.backend_url = self.config["backend"]["url"]
         if self.backend_url is False:
-            self.detectors_fn = list()
-            for d in self.config["detectors"]:
-                detector = globals()[d["class"]](**d["params"])
-                self.choices.append(d["name"])
-                self.descriptions.append(d["description"])
-                self.classes.append(detector.class_names) 
-                self.detectors_fn.append(detector.detect)
+            raise Exception("Server detector")
         else:
             self.backend_url = os.environ.get("FASTAPIURL")
             self.get_endpoint_info()
@@ -54,8 +46,8 @@ class DetectorBackend():
         if model_index not in range(len(self.choices)):
             raise ValueError("Incorrect model index")
         else:
-            if self.backend_url is None:
-                predictions = self.detectors_fn[model_index](image, **params)
+            if self.backend_url is False:
+                raise Exception("Server detector")
             else:
                 predictions = self._predict_from_endpoint(image, model_index) # params are not used in v2
         return predictions
