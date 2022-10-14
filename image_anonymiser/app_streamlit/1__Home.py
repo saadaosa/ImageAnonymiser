@@ -185,6 +185,7 @@ def create_user_boxes(image, predictions):
 def create_anonym_params(image, predictions, pred_classes, pred_types):
     ''' Creates the anonymisation input parameters
     '''
+    st.sidebar.markdown("### 3. Choose Anonymisation params")
     c1 = st.sidebar.columns(3)
     target_type = c1[0].selectbox(label="Target Type", options=pred_types)
     anonym_type = c1[1].selectbox(label="Anonymisation", options=["blur", "color"])
