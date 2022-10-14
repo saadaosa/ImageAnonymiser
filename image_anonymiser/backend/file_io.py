@@ -92,15 +92,25 @@ class FileIO():
 
         folder = Path(folder)
 
-        with open(folder / "predictions.json", "r") as infile:
-            predictions = json.load(infile)
+        if Path(folder / "predictions.json").exists():
+            with open(folder / "predictions.json", "r") as infile:
+                predictions = json.load(infile)
+        else:
+            predictions = None
 
-        with open(folder / "additional_info.json", "r") as infile:
-            additional_info = json.load(infile)
+        if Path(folder / "additional_info.json").exists():
+            with open(folder / "additional_info.json", "r") as infile:
+                additional_info = json.load(infile)
+        else:
+            additional_info = None
 
-        image = Image.open(folder / "image.jpeg")
+        if Path(folder / "image.jpeg").exists()
+            image = Image.open(folder / "image.jpeg")
+            image = np.array(image)
+        else:
+            image = None
 
-        return np.array(image), predictions, additional_info
+        return image, predictions, additional_info
 
     def list_flagged_directory(self, top: int = 20) -> typing.List[Path]:
         """
