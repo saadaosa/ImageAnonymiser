@@ -220,13 +220,9 @@ class DetectorBackend():
         colors = self._get_colors(predictions["name2int"], pred_labels, pred_classes, is_user_box)
 
         labels = list()
-        multi_class = len(pred_labels) > 1
 
-        for c_id, i_id in zip(pred_classes, instance_ids):
-            if multi_class:
-                labels.append(f'{predictions["class_names"][c_id]}_{i_id}')
-            else:
-                labels.append(f'{i_id}')
+        for i_id in instance_ids:
+            labels.append(f'{i_id}')
 
         for box, color, label, c_id in zip(boxes, colors, labels, pred_classes):
             x1, y1, x2, y2 = box
