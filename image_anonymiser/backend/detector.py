@@ -189,13 +189,12 @@ class DetectorBackend():
 
     def _draw_text(self, image, box, text, color, thick):
         x1, y1, x2, y2 = box
-        font_scale = self._get_optimal_font_scale(text, x2-x1, thick)
+        font_scale = self._get_optimal_font_scale(text, (x2-x1) * 0.75, thick)
 
-        (text_width, text_height) = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, fontScale=font_scale, thickness=thick)[0]
 
         # set the text start position
         text_offset_x = 1 + x1
-        text_offset_y = 1 + y1 + text_height
+        text_offset_y = y1 - int((y2-y1) * 0.1)
 
         cv2.putText(image, text, (text_offset_x, text_offset_y), cv2.FONT_HERSHEY_SIMPLEX, fontScale=font_scale, color=color, thickness=thick)
 
@@ -226,7 +225,7 @@ class DetectorBackend():
 
         for box, color, label, c_id in zip(boxes, colors, labels, pred_classes):
             x1, y1, x2, y2 = box
-            thick = int((output.shape[0] + output.shape[1]) // 500.0)
+            thick = int((output.shape[0] + output.shape[1]) // 700.0)
             cv2.rectangle(output, (x1, y1), (x2, y2), color, thick)
 
             cname = predictions["class_names"][c_id]
