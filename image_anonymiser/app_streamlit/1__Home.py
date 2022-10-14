@@ -94,7 +94,7 @@ def btn_annotations(image, predictions, model_id, allow_save):
     if allow_save:
         file_io.store_image_with_predictions(image, additional_info, predictions)
         with st.columns(3)[0]:
-            st.success("**Thank you 🙏**") ## todo: change location where this is displayed?
+            st.success("**Thank you 🙏**")
 
 def btn_anonymise(image, predictions, anonym_type, compound, target_type, blur_strength, color,
                 anonym_class, anonym_instance):
@@ -221,7 +221,7 @@ try:
 
     # Image uploader
     st.sidebar.markdown("### 1. Upload an Image")
-    image_uploader = st.sidebar.file_uploader(label='Image Upload', type=['png', 'jpg', 'jpeg'],
+    image_uploader = st.sidebar.file_uploader(label='Image Upload', type=['jpg', 'jpeg'],
                 on_change=input_image_changed, key="image_uploader", label_visibility="collapsed")
 
     st.markdown(" ## 👻 Image Anonymiser")
