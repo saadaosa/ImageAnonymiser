@@ -70,9 +70,11 @@ def checkbox_img_flagged(dir_name, column):
     """
     image, predictions, additional_info = file_io.load_image_with_predictions(dir_name)
     with column:
-        st.markdown(f"**Detected by** {additional_info['used_model']} **on** {additional_info['detect_date']}")
-        image_vis = detector.visualise_boxes(image, predictions, True)
-        st.image(image_vis)
+        if additional_info is not None:
+            st.markdown(f"**Detected by** {additional_info['used_model']} **on** {additional_info['detect_date']}")
+        if (image is not None) and (predictions is not None):
+            image_vis = detector.visualise_boxes(image, predictions, True)
+            st.image(image_vis)
 
 
 # Create the components of the app
