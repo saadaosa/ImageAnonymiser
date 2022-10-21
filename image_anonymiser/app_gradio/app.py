@@ -309,6 +309,6 @@ if __name__ == "__main__":
     parser.add_argument("--bconfig", 
                         default="config.yml", 
                         type=str, 
-                        help=f"Path to the backend config file")
+                        help=f"Name of the backend config file")
     args = parser.parse_args()
     main(args)

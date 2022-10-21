@@ -1,9 +1,15 @@
-import random
+import base64
+import os
+from importlib import import_module
+from io import BytesIO
 from itertools import compress
+from pathlib import Path
 
+import cv2
+import numpy as np
+import PIL.Image
+import requests
 import yaml
-
-from image_anonymiser.models.detectors import *
 
 PAR_DIR = Path(__file__).resolve().parent
 CONFIG_DIR = PAR_DIR / "configs"
@@ -13,27 +19,39 @@ class DetectorBackend():
     """ Interface to a backend that returns predictions
     """
 
-    def __init__(self, config):
+    def __init__(self, config, force_inapp=False):
         config_file = CONFIG_DIR / config
         with open(config_file, 'r') as file:
             self.config = yaml.safe_load(file)
-        self.detectors = list()
+        # setup predictor 
         self.detectors_fn = list()
         self.choices = list()
         self.descriptions = list()
         self.classes = list()
-        for d in self.config["detectors"]:
-            detector = globals()[d["class"]](**d["params"])
-            self.choices.append(d["name"])
-            self.descriptions.append(d["description"])
-            self.classes.append(detector.class_names)
-            if d["url"] is None:
-                self.detectors.append(detector)
+        self.predictor = "inapp" if force_inapp else self.config["predictor"]["type"]
+        self.predictor_url = None
+        if self.predictor == "inapp":
+            models_module = import_module("image_anonymiser.models.detectors")
+            for d in self.config["detectors"]:
+                d_class = getattr(models_module, d["class"])
+                if "params" in d:
+                    detector = d_class(**d["params"])
+                else:
+                    detector = d_class()
+                self.choices.append(d["name"])
+                self.descriptions.append(d["description"])
+                self.classes.append(detector.class_names) 
                 self.detectors_fn.append(detector.detect)
-            else:
-                remote_detector = RemoteDetector(detector, url=d["url"])
-                self.detectors.append(remote_detector)
-                self.detectors_fn.append(remote_detector.detect_from_endpoint)
+        elif self.predictor == "api":
+            self.predictor_url = os.environ.get("FASTAPIURL", "http://127.0.0.1:8000")
+            self.get_endpoint_info()
+        else:
+            raise ValueError("Incorrect predictor type, should be inapp or api")
+        # setup visualizer
+        viz_module = import_module("image_anonymiser.backend.visualizer")
+        v_class = getattr(viz_module, self.config["visualizer"]["class"])
+        self.visualise_boxes = v_class().visualise_boxes
+
 
     def detect(self, image, model_index, **params):
         """ Runs a detection model
@@ -46,10 +64,13 @@ class DetectorBackend():
         Returns:
             predictions: dict, predictions as returned by the dection models
         """
-        if model_index not in range(len(self.detectors_fn)):
+        if model_index not in range(len(self.choices)):
             raise ValueError("Incorrect model index")
         else:
-            predictions = self.detectors_fn[model_index](image, **params)
+            if self.predictor_url is None:
+                predictions = self.detectors_fn[model_index](image, **params)
+            else:
+                predictions = self._predict_from_endpoint(image, model_index) # Note: params are not used in api
         return predictions
 
     def get_pred_types(self, predictions, incl_user_boxes=False):
@@ -158,80 +179,6 @@ class DetectorBackend():
         box_indices_x = [t[1] for t in tmp]
         return (np.array(box_indices_y), np.array(box_indices_x))
 
-    def _get_colors(self, name2int, pred_labels, pred_classes, is_user_box):
-
-        color_map = {name2int[name]: (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-                     for name in pred_labels}
-
-        if is_user_box is not None:
-
-            color_map_user = {name2int[name]: (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-                              for name in pred_labels}
-
-            colors = []
-            for id, is_userbox in zip(pred_classes, is_user_box):
-                c = color_map_user[id] if is_userbox else color_map[id]
-                colors.append(c)
-
-            return colors
-
-        else:
-            return [color_map[id] for id in pred_classes]
-
-    def _get_optimal_font_scale(self, text, width, thick):
-        for scale in reversed(range(0, 60, 1)):
-            textSize = cv2.getTextSize(text, fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=scale / 10, thickness=thick)
-            new_width = textSize[0][0]
-            if (new_width <= width):
-                print(new_width)
-                return scale / 10
-        return 1
-
-    def _draw_text(self, image, box, text, color, thick):
-        x1, y1, x2, y2 = box
-        font_scale = self._get_optimal_font_scale(text, (x2-x1) * 0.75, thick)
-
-
-        # set the text start position
-        text_offset_x = 1 + x1
-        text_offset_y = y1 - int((y2-y1) * 0.1)
-
-        cv2.putText(image, text, (text_offset_x, text_offset_y), cv2.FONT_HERSHEY_SIMPLEX, fontScale=font_scale, color=color, thickness=thick)
-
-    def visualise_boxes(self, image, predictions, incl_user_boxes=False):
-        """ Function used to visualise boxes detected   
-        """
-        output = np.copy(image)
-        if incl_user_boxes and "boxes_adj" in predictions:
-            boxes = predictions["boxes_adj"]
-            pred_classes = predictions["pred_classes_adj"]
-            instance_ids = predictions["instance_ids_adj"]
-            pred_labels = predictions["pred_labels_adj"]
-            is_user_box = predictions["is_user_box"]
-
-        else:
-            boxes = predictions["boxes"]
-            pred_classes = predictions["pred_classes"]
-            instance_ids = predictions["instance_ids"]
-            pred_labels = predictions["pred_labels"]
-            is_user_box = None
-
-        colors = self._get_colors(predictions["name2int"], pred_labels, pred_classes, is_user_box)
-
-        labels = list()
-
-        for i_id in instance_ids:
-            labels.append(f'{i_id}')
-
-        for box, color, label, c_id in zip(boxes, colors, labels, pred_classes):
-            x1, y1, x2, y2 = box
-            thick = int((output.shape[0] + output.shape[1]) // 700.0)
-            cv2.rectangle(output, (x1, y1), (x2, y2), color, thick)
-
-            cname = predictions["class_names"][c_id]
-            self._draw_text(output, box, f"{cname} {label}", color, thick)
-        return output
-
     def add_labeled_box(self, box, label, predictions):
         """ Adds a user defined box to the predictions dictionary
 
@@ -246,7 +193,8 @@ class DetectorBackend():
                 "pred_classes_Adj": Ids of the classes detected including the ones added by the user
                 "scores_adj: The original scores including 1 (100% certainty) for each user label
                 "boxes_adj": The original boxes including the ones added by the user
-                "instance_ids_adj": The original instance ids including the ones of the new user objects  
+                "instance_ids_adj": The original instance ids including the ones of the new user objects
+                "is_user_box": list[bool] used to flag if the box has been added by the user or not  
         """
         if label in predictions["class_names"]:
             label_id = predictions["name2int"][label]
@@ -259,7 +207,7 @@ class DetectorBackend():
                 predictions["boxes_adj"] = predictions["boxes"].copy()
                 predictions["instance_ids_adj"] = predictions["instance_ids"].copy()
                 predictions["pred_labels_adj"] = predictions["pred_labels"].copy()
-                predictions["is_user_box"] = [False for _ in predictions["scores"]]
+                predictions["is_user_box"] = [False for _ in predictions["boxes"]]
 
             predictions["scores_adj"].append(1)
             predictions["boxes_adj"].append(box)
@@ -277,25 +225,19 @@ class DetectorBackend():
             predictions["instance_ids_adj"].append(new_id)
         return predictions
 
+    def get_endpoint_info(self):
+        response = requests.get(f"{self.predictor_url}/info")
+        info = response.json()
+        self.choices = info["choices"]
+        self.descriptions = info["descriptions"]
+        self.classes = info["classes"]
 
-class RemoteDetector():
-    """ Class used to run a detection via url
-    """
-
-    def __init__(self, detector, url=None):
-        self.detector = detector  # kept for the time being in case we need info about the detector without calling the endpoint
-        self.url = url
-
-    def detect_from_endpoint(self, image, **params):
-        """ Runs a detection model via url
-            ##todo: add the format expected and returned by the endpoint
-        
-        Params:
-            image: numpy array, input image
-            model_index: int, index of the dector model in self.detectors (0: detectron, 1: facenet, 2: ocr)
-            params: model parameters
-
-        Returns:
-            predictions: dict, predictions as returned by the dection models
-        """
-        raise NotImplementedError(f"Endpoint detection not implemented yet, use local backend")
+    def _predict_from_endpoint(self, image, model_index):
+        pil_img = PIL.Image.fromarray(image)
+        buff = BytesIO()
+        pil_img.save(buff, format="JPEG")
+        byte_string = base64.b64encode(buff.getvalue()).decode("utf-8")
+        response = requests.post(f"{self.predictor_url}/detect", json={"image_str": byte_string, 
+                                                                "model_index": model_index})
+        predictions = response.json()["predictions"]
+        return predictions

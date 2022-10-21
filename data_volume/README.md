@@ -1,1 +1,1 @@
-This is the target folder for the docker voulme mount
+This is the target folder for storing the user boxes/feedback and for the docker volume mount

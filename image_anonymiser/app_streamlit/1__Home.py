@@ -32,10 +32,7 @@ def init_backend(args):
     return DetectorBackend(config_name), AnonymiserBackend(config_name), FileIO(config_name)
 
 # Initialise Backend
-try:
-    detector, anonymiser, file_io =  init_backend(sys.argv[1:])
-except Exception as e:
-    st.error(f"Something went wrong. Please refresh and try again.")
+detector, anonymiser, file_io =  init_backend(sys.argv[1:])
 
 # Functions called when the user interacts with specific streamlit components
 def input_image_changed():

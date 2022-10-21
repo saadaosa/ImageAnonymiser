@@ -15,6 +15,8 @@ First of all, this project has been built by `team_003`:
 
 #### Product overview
 
+At a high level, our solution is based on a two step approach: First, use deep learning models (object detection and segmentation) to locate the target object(s) in the input image; then allow the user to "customize" the way the anonymisation should be done
+
 <p align="center">
 <img src="./assets/product_overview.png" width="500" height="250"/>
 </p>
@@ -111,14 +113,14 @@ The backend consists of three main components:
 
 ###### a) The detector:
 - Since we have a `multi-model` support in our application, the detector module manages: 
-  - `automatic instanciation` of the different models: This is done through a config file that lists the models that should be exposed in the UI as well as their default parameters. This allows us to deactivate/add models with no change/new development in the backend or the frontend, as long as these models are instances of classes that are available in the models module
+  - `automatic instantiation` of the different models: This is done through a config file that lists the models that should be exposed in the UI as well as their default parameters. This allows us to deactivate/add models with no change/new development in the backend or the frontend, as long as these models are instances of classes that are available in the models module
   - Calling the detection function of the relevant model
   - Sending the relevant `predictions data` required by the Stremlit or Gradio app
   - Identifying the `target regions` in the image that need to be anonymised based on the user input (as a reminder you can anonymise all instances of a class or by instance)
-  - `Visualising` output images
+  - `Visualising` output images (note: we are planning to have a separate visualisation module)
   - Adding `new user annotations`, as this impacts most functions above
 - Although we could have changed some logic inside the detector, we decided to keep a "backward compatibility" with the initial Gradio app. This allows us to continue testing the gradio setting
-- The detector can also be used in **inference API server** mode using [FastAPI](https://fastapi.tiangolo.com/). This is a feature we added late in the process with the aim of making the Stremlit app more light weight and decouple the two services (not just functionnaly but also by having two different servers)    
+- The detector can also be used in **inference API server** mode using [FastAPI](https://fastapi.tiangolo.com/). This is a feature we added late in the process with the aim of making the Streamlit app more light weight and decouple the two services (not just functionnaly but also by having two different servers)    
 
 ###### b) The anonymiser:
 
@@ -148,12 +150,12 @@ The backend consists of three main components:
 #### Deployment
 
 <p align="center">
-<img src="./assets/deployment_1.png" width="500" height="250"/>
+<img src="./assets/deployment.png" width="500" height="250"/>
 </p>
 
 - We containarised our services and provided instructions/scripts that can be found in our [Github repo](https://github.com/saadaosa/ImageAnonymiser)
 
-- Since we had access to the Lambdalabs instance during the course, and given that several models benefited from GPU inference, we decided to deploy the whole stack to Lambdalabs
+- Since we had access to the Lambdalabs instance during the course, and given that several models benefited from GPU inference, we decided to deploy the stack to Lambdalabs for the demo day (using in-app inference)
 
 - The app (both streamlit and gradio) can however be used in `both GPU and CPU mode` (just by switching the config file), so having access to a GPU during inference is not a requirement; and the inference times in CPU mode are still in the single digit/low teen seconds (so still manageable)
 

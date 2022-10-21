@@ -15,31 +15,10 @@ class AnonymiserBackend():
         config_file = CONFIG_DIR / config
         with open(config_file, 'r') as file:
             self.config = yaml.safe_load(file)
-        url = self.config["anonyniser"]["url"]
-        if url is None: # use local backend
-            anonymiser = Anonymiser()
-            self.anonymise = anonymiser.anonymise
-        else: #use backend accessible via url
-            self.url = url
-            self.anonymise = self._anonymise_from_endpoint
-        self.max_blur_intensity = self.config["anonyniser"]["max_blur_intensity"]
-        self.min_blur_intensity = self.config["anonyniser"]["min_blur_intensity"]
-
-    def _anonymise_from_endpoint(self, image, targets, anonym_type="blur", blur_kernel=(7,7), color=[255,255,0]):
-        """ Runs anonymisation via url
-            ##todo: add the format expected and returned by the endpoint
-        
-        Params:
-            image: numpy array, input image
-            targets: list[[int]], coordinates of the pixels to anonymise
-            anonym_type: str, can be "blur" or "color"
-            blur_kernel: int, kernel size to be used by cv2.GaussianBlur
-            color: list[int], color in [G,B,R] format
-        
-        Returns:
-            output: numpy array, image anonymised
-        """
-        raise NotImplementedError(f"Endpoint anonymisation not implemented yet, use local backend") 
+        anonymiser = Anonymiser()
+        self.anonymise = anonymiser.anonymise
+        self.max_blur_intensity = self.config["anonymiser"]["max_blur_intensity"]
+        self.min_blur_intensity = self.config["anonymiser"]["min_blur_intensity"]
 
     def convert_intensity(self, intensity):
         """ Converts a blur intensity from percentage to a kernel value used by the anonymise function

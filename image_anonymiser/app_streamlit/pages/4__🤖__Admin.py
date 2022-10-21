@@ -33,7 +33,7 @@ def init_backend(args):
 # Initialise Backend
 detector, file_io = init_backend(sys.argv[1:])
 # Read password from env variable
-PASSWORD = os.environ.get("STPASS")
+PASSWORD = os.environ.get("STPASS", "admin")
 
 
 def check_password():

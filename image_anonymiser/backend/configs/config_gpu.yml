@@ -1,27 +1,14 @@
-anonyniser:
-  url: null
+predictor:
+  type: "inapp" # can be inapp or api
+
+anonymiser:
   max_blur_intensity: 57
   min_blur_intensity: 1
 
 detectors:
-  # - class: "FaceDetector"
-  #   name: "Face detection"
-  #   description: "Can identify faces in an image. It produces bounding boxes and segmentation masks (identifies the targets at a pixel level)"
-  #   url: null
-  #   params:
-  #     min_face_size: 20
-  #     thresholds:
-  #       - 0.6
-  #       - 0.7
-  #       - 0.7
-  #     device: "cuda"
-  #     expansion: 20
-  #     deeplab_model: "model_final"
-
   - class: "FaceNETDetector"
     name: "Face detection"
     description: "Can identify faces in an image. It produces bounding boxes around the targets identified in the input"
-    url: null
     params:
       min_face_size: 20
       thresholds:
@@ -33,7 +20,6 @@ detectors:
   - class: "DetectronSingleDetector"
     name: "Person detection"
     description: "Can identify persons in an image. Produces both bounding boxes and segmentation masks (identifies the targets at a pixel level). The model is trained on the COCO dataset"
-    url: null
     params:
       cfg_name: "COCO-PanopticSegmentation/panoptic_fpn_R_50_3x.yaml"
       weights_file_name: "model_final_c10459.pkl"
@@ -45,7 +31,6 @@ detectors:
     name: "Text detection"
     cfg_name: ""
     description: "Can identify English text in an image. Produces bounding boxes around the targets identified in the input"
-    url: null
     params:
       lang_list: # if this is updated, need to download the corresponding model
         - "en"
@@ -54,7 +39,6 @@ detectors:
   - class: "DetectronDetector"
     name: "Multi-class detection"
     description: "Can identify multiple common object classes in an image. Produces both bounding boxes and segmentation masks (identifies the targets at a pixel level). The model is trained on the COCO dataset"
-    url: null
     params:
       cfg_name: "COCO-PanopticSegmentation/panoptic_fpn_R_50_3x.yaml"
       weights_file_name: "model_final_c10459.pkl"
@@ -65,3 +49,6 @@ file_io:
   flagged_path: "data_volume/flagged_images"
   feedback_path: "data_volume/feedback"
   logdir: "data_volume/logs"
+
+visualizer:
+  class: "AdaptativeVisualizer"

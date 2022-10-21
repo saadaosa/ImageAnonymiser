@@ -1,11 +1,24 @@
 predictor:
   type: "inapp" # can be inapp or api
 
-anonymiser:
+anonyniser:
   max_blur_intensity: 57
   min_blur_intensity: 1
 
 detectors:
+  - class: "FaceDetector"
+    name: "Face detection"
+    description: "Can identify faces in an image. It produces bounding boxes and segmentation masks (identifies the targets at a pixel level)"
+    params:
+      min_face_size: 20
+      thresholds:
+        - 0.6
+        - 0.7
+        - 0.7
+      device: null
+      expansion: 20
+      deeplab_model: "model_final"
+
   - class: "FaceNETDetector"
     name: "Face detection"
     description: "Can identify faces in an image. It produces bounding boxes around the targets identified in the input"
