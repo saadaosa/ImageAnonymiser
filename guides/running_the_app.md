@@ -9,7 +9,8 @@ This guide will help you in running the app in both local and docker modes
 - Create a virtual environment and install the requirements ([see below](####Installing-the-requirements)). Activate the environment
 - If you are using the **FastAPI** prediction endpoint, you need first to start the server ([see below](####Starting-the-FastAPI-app)). You also need to set the environment variable `FASTAPIURL` which contains the host and port of the FastAPI app (defaults to `http://127.0.0.1:8000` if the variable is not set)
 - Run `image_anonymiser/models/artifacts/get_model_weights.sh` in order to download the model weights and store them in the folder `image_anonymiser/models/artifacts`
-<br>  
+<br>
+
 - To run the **Gradio app** (from the root folder):
   - `python image_anonymiser/app_gradio/app.py [args]`
   - The args are:
@@ -19,6 +20,7 @@ This guide will help you in running the app in both local and docker modes
     - `--debug`: Used for gradio debug mode. Default is False
     - `--bconfig`: Name of the backend config file. Default is config.yml (backend config files need to be placed in `image_anonymiser/backend/configs`)
 <br>
+
 - To run the **Streamlit app** (from the root folder):
   - `python -m streamlit run image_anonymiser/app_streamlit/1__Home.py -- [args]`
   - The args are:
@@ -27,7 +29,8 @@ This guide will help you in running the app in both local and docker modes
     - You can specify arguments that are specific to the streamlit engine (example: to limit the file size use `--server.maxUploadSize=your_limit`). For more information see [Streamlit docs](https://docs.streamlit.io/library/advanced-features/configuration)
     - Streamlit args need to be seperated from the app args by using `--`; for instance to limit the upload size to 5MB and specify a different config file use `--server.maxUploadSize=5 -- --bconfig=other_config.yml`
     - The admin interface reads the password from an environment variable called `STPASS`. Set this variable to your own password (if not, a default one will be used)
-<br>  
+<br>
+
 - A script (`image_anonymiser/launch.sh`) can be used/modified to run either the Gradio or Streamlit app:
   - It expects the following arguments: `[local | docker] [streamlit | gradio] [gpu | cpu] [gradio_args]`
   - Example: To start the streamlit app locally in cpu mode, run `launch.sh local streamlit cpu` 
@@ -80,6 +83,7 @@ Note: During the build process of the images containing the inference code, the 
 
 - To make the gpus available in [Lambda Labs](https://lambdalabs.com/) use `--gpus \"device=${CUDA_VISIBLE_DEVICES}\"` when your run the container with the inference code (in the examples above, this is relevant for `imageanonymiser` and `imageanonymiser_api`)
 <br>
+
 - The Streamlit app saves feedbacks and user annotations in a folder called `data_volume`. To persist the data on the host machine and have access to it accross different container runs, you can use a `docker volume`. In the run command add `--mount source=your_volume_name,target=/app/data_volume` (in the examples above, this is relevant for `imageanonymiser` and `imageanonymiser_app`)  
 
 
@@ -87,6 +91,7 @@ Note: During the build process of the images containing the inference code, the 
 
 - Run a Ngrok agent with the following command: `docker run --net=host -d -e NGROK_AUTHTOKEN=your_token ngrok/ngrok:latest http application_port` ([see Ngrok doc](https://ngrok.com/docs/using-ngrok-with#docker))
 <br>
+
 - To retrieve your public url, from the host where docker is running, use: 
   
   `curl -s http://127.0.0.1:4040/api/tunnels | python3 -c "import sys, json; print(json.load(sys.stdin)['tunnels'][0]['public_url'])"`
